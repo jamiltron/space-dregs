@@ -20,6 +20,7 @@ Push deeper into the belt, where the rocks are richer and the pirates are waitin
 
 - Arrows/WASD to fly
 - Space to fire
+- M to toggle mute
 - X to drop mines (when available)
 - Shift to launch missiles (when available)
 - Additional buttons prompted at stations
