@@ -27,4 +27,4 @@ Push deeper into the belt, where the rocks are richer and the pirates are waitin
 
 ## License Notice
 
-Built with SDL3 (zlib license) and compiled for the web with Emscripten (MIT license). Space Dregs itself is GPL-3.0-or-later — see LICENSE.
+Built with SDL3 (zlib license) and compiled for the web with Emscripten (MIT license). Space Dregs itself is GPL-3.0-or-later (see LICENSE).
