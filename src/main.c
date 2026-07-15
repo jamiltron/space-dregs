@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>  // platform entry point (WinMain on Windows)
 #include <stdbool.h>
 
 #ifdef __EMSCRIPTEN__

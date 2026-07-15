@@ -65,9 +65,10 @@ else()
             GIT_TAG release-3.2.8  # Pin specific version
         )
 
-        # SDL3 options
+        # SDL3 options: static-only so packaged binaries are self-contained
         set(SDL_TEST OFF CACHE BOOL "" FORCE)
         set(SDL_STATIC ON CACHE BOOL "" FORCE)
+        set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 
         FetchContent_MakeAvailable(SDL3)
 
@@ -108,6 +109,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE
     ${SDL3_LIB}
 )
+
+if(WIN32)
+    # GUI subsystem (no console window); SDL_main.h supplies the entry point
+    set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
+    if(MINGW)
+        target_link_options(${PROJECT_NAME} PRIVATE -static)  # no dll deps
+    endif()
+endif()
 
 #==========================================================================
 # Optimization Flags (Release Builds)
@@ -172,6 +181,52 @@ if(NOT USE_EMSCRIPTEN)
         DEPENDS ${PROJECT_NAME}
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
+
+    # Desktop packaging: dist builds the platform's shippable zip into dist/.
+    # macOS: signed (ad hoc) .app bundle. Windows/Linux: binary + assets.
+    set(DIST_DIR ${CMAKE_SOURCE_DIR}/dist)
+    if(APPLE)
+        set(BUNDLE ${CMAKE_BINARY_DIR}/SpaceDregs.app)
+        add_custom_target(dist
+            COMMAND ${CMAKE_COMMAND} -E rm -rf ${BUNDLE}
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                ${BUNDLE}/Contents/MacOS ${BUNDLE}/Contents/Resources
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/cmake/Info.plist
+                ${BUNDLE}/Contents/Info.plist
+            COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}>
+                ${BUNDLE}/Contents/MacOS/SpaceDregs
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR}
+                ${BUNDLE}/Contents/Resources/assets
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/LICENSE
+                ${BUNDLE}/Contents/Resources/LICENSE
+            COMMAND codesign --force --deep --sign - ${BUNDLE}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${DIST_DIR}
+            COMMAND ditto -c -k --keepParent --norsrc ${BUNDLE}
+                ${DIST_DIR}/spacedregs-macos.zip
+            DEPENDS ${PROJECT_NAME}
+            COMMENT "Packaging dist/spacedregs-macos.zip"
+        )
+    else()
+        if(WIN32)
+            set(DIST_ZIP spacedregs-windows.zip)
+        else()
+            set(DIST_ZIP spacedregs-linux.zip)
+        endif()
+        set(STAGE ${CMAKE_BINARY_DIR}/dist-stage/SpaceDregs)
+        add_custom_target(dist
+            COMMAND ${CMAKE_COMMAND} -E rm -rf ${CMAKE_BINARY_DIR}/dist-stage
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${STAGE}
+            COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${PROJECT_NAME}> ${STAGE}
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${STAGE}/assets
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/LICENSE ${STAGE}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${DIST_DIR}
+            COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_DIR}/dist-stage
+                ${CMAKE_COMMAND} -E tar cf ${DIST_DIR}/${DIST_ZIP} --format=zip
+                SpaceDregs
+            DEPENDS ${PROJECT_NAME}
+            COMMENT "Packaging dist/${DIST_ZIP}"
+        )
+    endif()
 endif()
 
 if(USE_EMSCRIPTEN)
@@ -198,9 +253,11 @@ if(USE_EMSCRIPTEN)
             $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.wasm
             $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.data
             ${DIST_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/LICENSE ${DIST_DIR}
         COMMAND ${CMAKE_COMMAND} -E chdir ${DIST_DIR} ${CMAKE_COMMAND} -E tar cf
             spacedregs-web.zip --format=zip
             index.html ${PROJECT_NAME}.js ${PROJECT_NAME}.wasm ${PROJECT_NAME}.data
+            LICENSE
         DEPENDS ${PROJECT_NAME}
         COMMENT "Bundling itch.io web package into dist/spacedregs-web.zip"
     )

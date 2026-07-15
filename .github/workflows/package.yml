@@ -1,0 +1,111 @@
+name: package
+
+# Builds the shippable zips for every platform: web (itch target) plus
+# macOS/Windows/Linux desktop bundles (dist target). Run manually from
+# the Actions tab, or push a v* tag.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the git version stamp resolves
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.10
+      - name: Configure
+        run: emcmake cmake -B build-web -DUSE_EMSCRIPTEN=ON -DCMAKE_BUILD_TYPE=Release
+      - name: Package
+        run: cmake --build build-web --target itch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spacedregs-web
+          path: dist/spacedregs-web.zip
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Package
+        run: cmake --build build --target dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spacedregs-macos
+          path: dist/spacedregs-macos.zip
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: SDL build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential ninja-build pkg-config \
+            libasound2-dev libpulse-dev libpipewire-0.3-dev libx11-dev \
+            libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
+            libxss-dev libxtst-dev libxkbcommon-dev libdrm-dev libgbm-dev \
+            libgl1-mesa-dev libegl1-mesa-dev libdbus-1-dev libudev-dev \
+            libwayland-dev libdecor-0-dev
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Package
+        run: cmake --build build --target dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spacedregs-linux
+          path: dist/spacedregs-linux.zip
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Package
+        run: cmake --build build --target dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spacedregs-windows
+          path: dist/spacedregs-windows.zip
+
+  # Tag builds also publish a GitHub Release with all four zips attached
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [web, macos, linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          generate_release_notes: true

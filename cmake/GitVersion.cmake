@@ -2,7 +2,7 @@
 # only rewrites the file when the version changed, so incremental builds
 # stay incremental.
 execute_process(
-    COMMAND git describe --always --dirty
+    COMMAND git describe --tags --always --dirty
     WORKING_DIRECTORY ${SOURCE_DIR}
     OUTPUT_VARIABLE GIT_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
