@@ -1,4 +1,4 @@
-# Doxygen configuration for Space Dregs — unspecified options use defaults.
+# Doxygen configuration for Space Dregs
 PROJECT_NAME           = "Space Dregs"
 PROJECT_BRIEF          = "Vector-based 2D asteroids-alike"
 INPUT                  = src
