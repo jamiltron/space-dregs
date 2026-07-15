@@ -24,3 +24,7 @@ Push deeper into the belt, where the rocks are richer and the pirates are waitin
 - X to drop mines (when available)
 - Shift to launch missiles (when available)
 - Additional buttons prompted at stations
+
+## License Notice
+
+Built with SDL3 (zlib license) and compiled for the web with Emscripten (MIT license). Space Dregs itself is GPL-3.0-or-later — see LICENSE.
