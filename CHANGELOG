@@ -1,3 +1,7 @@
+## v0.2.2
+
+- Adding icons to the project, including base64 encoded for web, to get it in the itch.io browser tab
+
 ## v0.2.0
 
 - Initiated git workflow for four platforms (linux, mac, web, windows)
