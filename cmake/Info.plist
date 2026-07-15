@@ -11,6 +11,8 @@
   <string>com.justinhamilton.spacedregs</string>
   <key>CFBundleExecutable</key>
   <string>SpaceDregs</string>
+  <key>CFBundleIconFile</key>
+  <string>SpaceDregs</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

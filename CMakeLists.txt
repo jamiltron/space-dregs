@@ -113,6 +113,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 if(WIN32)
     # GUI subsystem (no console window); SDL_main.h supplies the entry point
     set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
+    enable_language(RC)
+    target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/icons/icon.rc)
     if(MINGW)
         target_link_options(${PROJECT_NAME} PRIVATE -static)  # no dll deps
     endif()
@@ -199,6 +201,9 @@ if(NOT USE_EMSCRIPTEN)
                 ${BUNDLE}/Contents/Resources/assets
             COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/LICENSE
                 ${BUNDLE}/Contents/Resources/LICENSE
+            COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/icons/SpaceDregs.icns
+                ${BUNDLE}/Contents/Resources/SpaceDregs.icns
             COMMAND codesign --force --deep --sign - ${BUNDLE}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${DIST_DIR}
             COMMAND ditto -c -k --keepParent --norsrc ${BUNDLE}

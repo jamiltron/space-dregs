@@ -1,0 +1,5 @@
+// Copyright (C) 2026 Justin Hamilton
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// Embeds the app icon into the Windows executable (compiled by windres).
+1 ICON "SpaceDregs.ico"
