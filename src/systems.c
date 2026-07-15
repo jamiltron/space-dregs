@@ -1,0 +1,772 @@
+// Copyright (C) 2026 Justin Hamilton
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include <math.h>
+#include <SDL3/SDL.h>
+#include "systems.h"
+#include "draw.h"
+#include "asteroid.h"
+#include "bullet.h"
+#include "events.h"
+#include "mine.h"
+#include "missile.h"
+#include "particles.h"
+#include "pirate.h"
+#include "replay.h"
+#include "scrap.h"
+#include "ship.h"
+#include "signal.h"
+#include "station.h"
+
+/** First (only) player, or MAX_ENTITIES while the ship is gone. */
+static Entity find_player(const World *world) {
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (entity_has(world, e, C_PLAYER | C_TRANSFORM)) return e;
+  }
+  return MAX_ENTITIES;
+}
+
+/** Far entities stop simulating; on wake they extrapolate
+ *  position/angle by the frozen duration in one step, so the world
+ *  appears to have kept drifting while unwatched. Lifetimes keep
+ *  ticking elsewhere so frozen transients still expire. */
+void system_freeze(World *world, Vec2f camera, float now) {
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_TRANSFORM)) continue;
+    if (entity_has(world, e, C_PLAYER)) continue;  // never freeze the player
+
+    Transform *tf = &world->transforms[e];
+    bool far = fabsf(tf->position.x - camera.x) > FREEZE_RADIUS ||
+               fabsf(tf->position.y - camera.y) > FREEZE_RADIUS;
+    bool frozen = entity_has(world, e, C_FROZEN);
+
+    if (far && !frozen) {
+      world->masks[e] |= C_FROZEN;
+      world->frozens[e].since = now;
+    } else if (!far && frozen) {
+      world->masks[e] &= ~C_FROZEN;
+
+      // Catch up: dead-reckon the missed time (no collisions). Damping
+      // must be honored — its closed form coasts at most v/k — or a
+      // long-frozen ship teleports by v*t on wake.
+      if (entity_has(world, e, C_VELOCITY)) {
+        float elapsed = now - world->frozens[e].since;
+        Velocity *vel = &world->velocities[e];
+        if (vel->damping > 0.0f) {
+          float decay = expf(-vel->damping * elapsed);
+          tf->position = vec2f_add(
+              tf->position,
+              vec2f_mul(vel->value, (1.0f - decay) / vel->damping));
+          vel->value = vec2f_mul(vel->value, decay);
+        } else {
+          tf->position = vec2f_add(tf->position,
+                                   vec2f_mul(vel->value, elapsed));
+        }
+        tf->angle += vel->spin * elapsed;
+      }
+    }
+  }
+}
+
+void system_player(World *world, float dt) {
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_PLAYER | C_TRANSFORM | C_VELOCITY)) continue;
+
+    Player    *player = &world->players[e];
+    Transform *tf     = &world->transforms[e];
+    Velocity  *vel    = &world->velocities[e];
+
+    if (sim_input(ACT_LEFT)) {
+      tf->angle -= player->rot_speed * dt;
+    }
+    if (sim_input(ACT_RIGHT)) {
+      tf->angle += player->rot_speed * dt;
+    }
+
+    Vec2f dir = vec2f_dir(DEG_TO_RAD(tf->angle));
+
+    player->thrusting = sim_input(ACT_THRUST) && player->fuel > 0.0f;
+
+    if (player->thrusting) {
+      player->fuel -= SHIP_FUEL_BURN * dt;
+      if (player->fuel < 0.0f) player->fuel = 0.0f;
+
+      vel->value = vec2f_add(vel->value, vec2f_mul(dir, player->thrust_force * dt));
+
+      // Upgraded engines burn bigger: more motes, thrown harder
+      float fire_scale = sqrtf(player->thrust_force / SHIP_THRUST_FORCE);
+
+      player->exhaust_timer -= dt;
+      while (player->exhaust_timer <= 0.0f) {
+        player->exhaust_timer += 0.03f / fire_scale;
+
+        Vec2f nozzle = vec2f_add(tf->position,
+                                 vec2f_mul(dir, -player->exhaust_offset));
+        Vec2f perp = vec2f_new(-dir.y, dir.x);
+        Vec2f pvel = vec2f_add(
+            vel->value,
+            vec2f_mul(dir, -(110.0f + world_randf(world) * 70.0f) * fire_scale));
+        pvel = vec2f_add(pvel,
+                         vec2f_mul(perp, (world_randf(world) * 2.0f - 1.0f) * 35.0f));
+
+        SDL_Color glow = world_randf(world) < 0.5f
+                             ? (SDL_Color){ 255, 170, 60, 255 }
+                             : (SDL_Color){ 255, 220, 120, 255 };
+        exhaust_particle(world, nozzle, pvel, glow);
+      }
+    }
+
+    player->damage_timer -= dt;
+
+    if (player->shield_max > 0 && player->shield < player->shield_max) {
+      player->shield_regen += dt;
+      if (player->shield_regen >= SHIP_SHIELD_REGEN_SECS) {
+        player->shield_regen -= SHIP_SHIELD_REGEN_SECS;
+        player->shield++;
+      }
+    } else {
+      player->shield_regen = 0.0f;
+    }
+
+    player->fire_cooldown -= dt;
+
+    if (sim_input(ACT_FIRE) && player->fire_cooldown <= 0.0f) {
+      player->fire_cooldown = player->fire_interval;
+
+      Vec2f muzzle = vec2f_add(tf->position,
+                               vec2f_mul(dir, player->muzzle_offset));
+      Vec2f bullet_vel = vec2f_add(vel->value, vec2f_mul(dir, BULLET_SPEED));
+      bullet_spawn(world, muzzle, bullet_vel, tf->angle, false);
+      events_emit(EV_PLAYER_FIRED, muzzle);
+    }
+
+    bool mine_key = sim_input(ACT_MINE);
+    if (mine_key && !player->mine_latch && player->mines > 0 &&
+        !station_docked(world, e)) {
+      Vec2f stern = vec2f_sub(tf->position, vec2f_mul(dir, MINE_DROP_OFFSET));
+      mine_spawn(world, stern, vel->value);
+      player->mines--;
+      events_emit(EV_MINE_DROPPED, stern);
+    }
+    player->mine_latch = mine_key;
+
+    bool missile_key = sim_input(ACT_MISSILE);
+    if (missile_key && !player->missile_latch && player->missiles > 0 &&
+        !station_docked(world, e)) {
+      Vec2f nose = vec2f_add(tf->position,
+                             vec2f_mul(dir, player->muzzle_offset));
+      missile_spawn(world, nose, tf->angle);
+      player->missiles--;
+      events_emit(EV_MISSILE_FIRED, nose);
+    }
+    player->missile_latch = missile_key;
+  }
+}
+
+/** Wander until the player enters the sense radius, then turn in,
+ *  close to a standoff distance, and fire when lined up. Station
+ *  zones are fled; loose scrap gets looted while idle. */
+void system_pirate(World *world, float dt) {
+  Entity player = find_player(world);
+
+  // Station zones are sanctuary: pirates flee them and won't engage
+  // a player sheltering inside one.
+  bool player_in_sanctuary = false;
+  if (player != MAX_ENTITIES) {
+    Vec2f ppos = world->transforms[player].position;
+    Entity near_station = station_nearest(world, ppos);
+    if (near_station != MAX_ENTITIES) {
+      Vec2f d = vec2f_sub(world->transforms[near_station].position, ppos);
+      player_in_sanctuary = vec2f_length(d) < STATION_SAFE_ZONE;
+    }
+  }
+
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_PIRATE | C_TRANSFORM | C_VELOCITY)) continue;
+    if (entity_has(world, e, C_FROZEN)) continue;
+
+    Pirate    *pirate = &world->pirates[e];
+    Transform *tf     = &world->transforms[e];
+    Velocity  *vel    = &world->velocities[e];
+    const PirateStats *st = pirate_stats(pirate->archetype);
+
+    pirate->fire_cooldown -= dt;
+
+    Vec2f to_player = { 0 };
+    float dist = 0.0f;
+    bool engaged = false;
+    if (player != MAX_ENTITIES && !player_in_sanctuary) {
+      to_player = vec2f_sub(world->transforms[player].position, tf->position);
+      dist = vec2f_length(to_player);
+      engaged = dist < st->sense_radius;
+    }
+
+    if (st->kamikaze) {
+      for (Entity m = 0; m < world->high_water; m++) {
+        if (!entity_has(world, m, C_MINE | C_TRANSFORM)) continue;
+        if (entity_has(world, m, C_FROZEN)) continue;
+
+        Vec2f d = vec2f_sub(world->transforms[m].position, tf->position);
+        float md = vec2f_length(d);
+        if (md < st->sense_radius && (!engaged || md < dist)) {
+          to_player = d;
+          dist = md;
+          engaged = true;
+        }
+      }
+    }
+
+    bool fleeing_station = false;
+    Vec2f flee_from = { 0 };
+    Entity my_station = station_nearest(world, tf->position);
+    if (my_station != MAX_ENTITIES) {
+      flee_from = world->transforms[my_station].position;
+      if (vec2f_length(vec2f_sub(tf->position, flee_from)) < STATION_SAFE_ZONE) {
+        fleeing_station = true;
+        engaged = false;
+      }
+    }
+
+    Entity prize = MAX_ENTITIES;
+    Vec2f to_prize = { 0 };
+    if (!fleeing_station && !engaged && !st->kamikaze) {
+      float best = PIRATE_SCRAP_RADIUS;
+      for (Entity s = 0; s < world->high_water; s++) {
+        if (!entity_has(world, s, C_SCRAP | C_TRANSFORM)) continue;
+        if (entity_has(world, s, C_FROZEN)) continue;
+
+        Vec2f d = vec2f_sub(world->transforms[s].position, tf->position);
+        float sd = vec2f_length(d);
+        if (sd < best) {
+          best = sd;
+          prize = s;
+          to_prize = d;
+        }
+      }
+
+      if (prize != MAX_ENTITIES && best < PIRATE_SCRAP_PICKUP) {
+        pirate->loot++;
+        entity_destroy(world, prize);
+        prize = MAX_ENTITIES;
+      }
+    }
+
+    float target_angle;
+    if (fleeing_station) {
+      target_angle = vec2f_heading(vec2f_sub(tf->position, flee_from));
+    } else if (engaged) {
+      target_angle = vec2f_heading(to_player);
+    } else if (prize != MAX_ENTITIES) {
+      target_angle = vec2f_heading(to_prize);
+    } else if (st->kamikaze) {
+      target_angle = tf->angle;  // dormant: hold position
+    } else {
+      pirate->wander_timer -= dt;
+      if (pirate->wander_timer <= 0.0f) {
+        pirate->wander_timer = 2.0f + world_randf(world) * 3.0f;
+        pirate->wander_dir = world_randf(world) * 360.0f;
+      }
+      target_angle = pirate->wander_dir;
+    }
+
+    float heading_error =
+        fmodf(target_angle - tf->angle + 540.0f, 360.0f) - 180.0f;
+    float max_turn = st->rot_speed * dt;
+    float turn = heading_error;
+    if (turn > max_turn) turn = max_turn;
+    if (turn < -max_turn) turn = -max_turn;
+    tf->angle += turn;
+
+    Vec2f dir = vec2f_dir(DEG_TO_RAD(tf->angle));
+
+    //     Kamikazes only move on an engaged player, and never stand off ---
+    bool facing = fabsf(heading_error) < 60.0f;
+    bool wants_thrust = st->kamikaze
+                            ? engaged || fleeing_station
+                            : !engaged || dist > PIRATE_KEEP_DIST;
+    if (facing && wants_thrust) {
+      vel->value = vec2f_add(vel->value, vec2f_mul(dir, st->thrust * dt));
+    }
+
+    if (!st->kamikaze && engaged && dist < PIRATE_FIRE_RANGE &&
+        fabsf(heading_error) < 12.0f && pirate->fire_cooldown <= 0.0f) {
+      pirate->fire_cooldown = st->fire_interval;
+
+      Vec2f muzzle = vec2f_add(tf->position,
+                               vec2f_mul(dir, st->size + 4.0f));
+      Vec2f bullet_vel = vec2f_add(
+          vel->value, vec2f_mul(dir, BULLET_SPEED * PIRATE_BULLET_SPEED_SCALE));
+      bullet_spawn(world, muzzle, bullet_vel, tf->angle, true);
+      events_emit(EV_PIRATE_FIRED, muzzle);
+    }
+  }
+}
+
+void system_scrap(World *world, float dt) {
+  Entity player = find_player(world);
+  if (player == MAX_ENTITIES) return;
+
+  Vec2f player_pos = world->transforms[player].position;
+  float magnet_radius = world->players[player].magnet_radius;
+
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_SCRAP | C_TRANSFORM | C_VELOCITY)) continue;
+    if (entity_has(world, e, C_FROZEN)) continue;
+
+    Vec2f delta = vec2f_sub(player_pos, world->transforms[e].position);
+    float dist = vec2f_length(delta);
+
+    if (dist < SCRAP_PICKUP_DIST) {
+      world->players[player].scrap++;
+      events_emit(EV_SCRAP_PICKUP, world->transforms[e].position);
+      entity_destroy(world, e);
+      continue;
+    }
+
+    if (dist < magnet_radius) {
+      // Pull ramps up as the scrap gets closer
+      Vec2f dir = vec2f_mul(delta, 1.0f / dist);
+      float pull = SCRAP_MAGNET_PULL * (1.2f - dist / magnet_radius);
+      world->velocities[e].value =
+          vec2f_add(world->velocities[e].value, vec2f_mul(dir, pull * dt));
+    }
+  }
+}
+
+void system_mines(World *world, float dt) {
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_MINE)) continue;
+
+    Mine *mine = &world->mines[e];
+    mine->fuse -= dt;
+
+    if (mine->fuse <= 0.0f) {
+      mine_explode(world, e);
+      continue;
+    }
+
+    // Blink faster as the fuse runs out
+    if (mine->fuse < 1.2f && fmodf(mine->fuse, 0.3f) < 0.06f) {
+      world->wireframes[e].flash = 0.05f;
+    }
+  }
+}
+
+/** Constant speed along the heading; the heading turns, rate-limited,
+ *  toward the nearest live pirate in seeker range. No target: straight. */
+void system_missiles(World *world, float dt) {
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_MISSILE | C_TRANSFORM | C_VELOCITY)) continue;
+    if (entity_has(world, e, C_FROZEN)) continue;
+
+    Transform *tf = &world->transforms[e];
+
+    // Re-acquire every step: the nearest pirate wins the seeker
+    float best = MISSILE_SEEK_RADIUS;
+    Vec2f to_target = { 0 };
+    bool locked = false;
+    for (Entity p = 0; p < world->high_water; p++) {
+      if (!entity_has(world, p, C_PIRATE | C_TRANSFORM)) continue;
+      if (entity_has(world, p, C_FROZEN)) continue;
+
+      Vec2f d = vec2f_sub(world->transforms[p].position, tf->position);
+      float pd = vec2f_length(d);
+      if (pd < best) {
+        best = pd;
+        to_target = d;
+        locked = true;
+      }
+    }
+
+    if (locked) {
+      float heading_error = fmodf(vec2f_heading(to_target) - tf->angle +
+                                      540.0f, 360.0f) - 180.0f;
+      float max_turn = MISSILE_TURN_RATE * dt;
+      if (heading_error > max_turn) heading_error = max_turn;
+      if (heading_error < -max_turn) heading_error = -max_turn;
+      tf->angle += heading_error;
+    }
+
+    Vec2f dir = vec2f_dir(DEG_TO_RAD(tf->angle));
+    world->velocities[e].value = vec2f_mul(dir, MISSILE_SPEED);
+
+    // Motor sparks off the tail
+    if (world_randf(world) < 0.5f) {
+      Vec2f tail = vec2f_sub(tf->position, vec2f_mul(dir, 7.0f));
+      Vec2f pvel = vec2f_mul(dir, -60.0f);
+      exhaust_particle(world, tail, pvel,
+                       (SDL_Color){ 255, 190, 90, 255 });
+    }
+  }
+}
+
+void system_lifetime(World *world, float dt) {
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_LIFETIME)) continue;
+
+    world->lifetimes[e].remaining -= dt;
+    if (world->lifetimes[e].remaining <= 0.0f) {
+      entity_destroy(world, e);
+    }
+  }
+}
+
+void system_movement(World *world, float dt) {
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_TRANSFORM | C_VELOCITY)) continue;
+    if (entity_has(world, e, C_FROZEN)) continue;
+
+    Transform *tf  = &world->transforms[e];
+    Velocity  *vel = &world->velocities[e];
+
+    if (vel->damping > 0.0f) {
+      vel->value = vec2f_mul(vel->value, expf(-vel->damping * dt));
+    }
+
+    float speed = vec2f_length(vel->value);
+    if (vel->max_speed > 0.0f && speed > vel->max_speed) {
+      vel->value = vec2f_mul(vel->value, vel->max_speed / speed);
+    }
+
+    tf->position = vec2f_add(tf->position, vec2f_mul(vel->value, dt));
+    tf->angle += vel->spin * dt;
+
+    if (entity_has(world, e, C_WIREFRAME) && world->wireframes[e].flash > 0.0f) {
+      world->wireframes[e].flash -= dt;
+    }
+  }
+}
+
+void player_take_damage(Player *player, int dmg) {
+  if (player->shield > 0) {
+    int absorbed = dmg < player->shield ? dmg : player->shield;
+    player->shield -= absorbed;
+    dmg -= absorbed;
+  }
+  player->hp -= dmg;
+}
+
+// Collision tuning
+#define RESTITUTION 0.85f
+#define IMPACT_DAMAGE_MIN 70.0f    /**< Closing speed below this is harmless. */
+#define IMPACT_DAMAGE_UNIT 110.0f  /**< Closing speed worth 1 hp at equal size. */
+
+/** Pairwise circle vs circle: overlapping bodies are pushed apart and
+ *  exchange an elastic impulse, with mass taken as radius^2 so small
+ *  rocks glance off big ones. Bullets damage instead of bouncing.
+ *  O(n^2) is fine at current active-entity counts. */
+void system_collision(World *world) {
+  const ComponentMask wanted = C_TRANSFORM | C_VELOCITY | C_COLLIDER;
+
+  for (Entity a = 0; a < world->high_water; a++) {
+    if (!entity_has(world, a, wanted)) continue;
+    if (entity_has(world, a, C_FROZEN)) continue;
+
+    for (Entity b = a + 1; b < world->high_water; b++) {
+      if (!entity_has(world, a, wanted)) break;  // a may die mid-loop (bullet hit)
+      if (!entity_has(world, b, wanted)) continue;
+      if (entity_has(world, b, C_FROZEN)) continue;
+
+      Transform *ta = &world->transforms[a];
+      Transform *tb = &world->transforms[b];
+      float ra = world->colliders[a].radius;
+      float rb = world->colliders[b].radius;
+
+      Vec2f delta = vec2f_sub(tb->position, ta->position);
+      float dist = vec2f_length(delta);
+      float overlap = (ra + rb) - dist;
+      if (overlap <= 0.0f) continue;
+
+      bool a_bullet = entity_has(world, a, C_BULLET);
+      if (a_bullet || entity_has(world, b, C_BULLET)) {
+        Entity bullet = a_bullet ? a : b;
+        Entity other  = a_bullet ? b : a;
+        if (entity_has(world, other, C_BULLET)) continue;  // tracers pass
+
+        // Bullet position ≈ point of contact
+        Vec2f contact = world->transforms[bullet].position;
+        bool hostile = world->bullets[bullet].hostile;
+
+        int punch = world->bullets[bullet].damage;
+        if (entity_has(world, other, C_ASTEROID)) {
+          asteroid_hit(world, other, punch, contact);
+          entity_destroy(world, bullet);
+        } else if (!hostile && entity_has(world, other, C_PIRATE)) {
+          pirate_hit(world, other, punch, contact);
+          entity_destroy(world, bullet);
+        } else if (hostile && entity_has(world, other, C_PLAYER)) {
+          Player *player = &world->players[other];
+          if (player->damage_timer <= 0.0f) {
+            player_take_damage(player, PIRATE_BULLET_DAMAGE);
+            player->damage_timer = SHIP_DAMAGE_COOLDOWN;
+            world->wireframes[other].flash = 0.1f;
+            events_emit(EV_PLAYER_HURT, contact);
+            if (player->hp <= 0) ship_explode(world, other);
+          }
+          entity_destroy(world, bullet);
+        }
+        continue;
+      }
+
+      // Contact normal from a to b (pick an arbitrary one if centered)
+      Vec2f normal = dist > 0.0001f ? vec2f_mul(delta, 1.0f / dist)
+                                    : vec2f_new(1.0f, 0.0f);
+
+      float inv_ma = 1.0f / (ra * ra);
+      float inv_mb = 1.0f / (rb * rb);
+      float inv_sum = inv_ma + inv_mb;
+
+      ta->position = vec2f_sub(ta->position,
+                               vec2f_mul(normal, overlap * inv_ma / inv_sum));
+      tb->position = vec2f_add(tb->position,
+                               vec2f_mul(normal, overlap * inv_mb / inv_sum));
+
+      Vec2f rel = vec2f_sub(world->velocities[b].value,
+                            world->velocities[a].value);
+      float approach = vec2f_dot(rel, normal);
+      if (approach >= 0.0f) continue;
+
+      float impulse = -(1.0f + RESTITUTION) * approach / inv_sum;
+      world->velocities[a].value = vec2f_sub(
+          world->velocities[a].value, vec2f_mul(normal, impulse * inv_ma));
+      world->velocities[b].value = vec2f_add(
+          world->velocities[b].value, vec2f_mul(normal, impulse * inv_mb));
+
+      bool a_mine = entity_has(world, a, C_MINE);
+      bool b_mine = entity_has(world, b, C_MINE);
+      if (a_mine != b_mine) {
+        Entity mine = a_mine ? a : b;
+        Entity toucher = a_mine ? b : a;
+        if (entity_has(world, toucher, C_PIRATE)) {
+          mine_explode(world, mine);
+          continue;
+        }
+      }
+
+      bool a_player = entity_has(world, a, C_PLAYER);
+      bool b_player = entity_has(world, b, C_PLAYER);
+      if (a_player != b_player) {
+        Entity ship  = a_player ? a : b;
+        Entity other = a_player ? b : a;
+
+        Player *player = &world->players[ship];
+        if (player->damage_timer <= 0.0f) {
+          int ram_damage = 0;
+          if (entity_has(world, other, C_ASTEROID)) {
+            ram_damage = 20 + (int)(world->asteroids[other].radius * 0.5f);
+          } else if (entity_has(world, other, C_PIRATE)) {
+            const PirateStats *pst =
+                pirate_stats(world->pirates[other].archetype);
+            ram_damage = pst->ram_damage;
+            // Kamikazes are spent on contact; the burst rides the same hit
+            if (pst->kamikaze) pirate_detonate(world, other);
+          }
+
+          if (ram_damage > 0) {
+            player_take_damage(player, ram_damage);
+            player->damage_timer = SHIP_DAMAGE_COOLDOWN;
+            world->wireframes[ship].flash = 0.1f;
+            events_emit(EV_PLAYER_HURT, world->transforms[ship].position);
+            if (player->hp <= 0) ship_explode(world, ship);
+          }
+        }
+      }
+
+      float impact = -approach;  // closing speed along the normal
+      if (impact > IMPACT_DAMAGE_MIN) {
+        // Ships hit dense for their size
+        float heft_a = a_player ? ra * 2.0f : ra;
+        float heft_b = b_player ? rb * 2.0f : rb;
+        Vec2f contact = vec2f_add(ta->position, vec2f_mul(normal, ra));
+
+        int dmg_a = (int)(impact / IMPACT_DAMAGE_UNIT * (heft_b / heft_a));
+        int dmg_b = (int)(impact / IMPACT_DAMAGE_UNIT * (heft_a / heft_b));
+
+        if (dmg_a > 0) {
+          if (entity_has(world, a, C_ASTEROID)) asteroid_hit(world, a, dmg_a, contact);
+          else if (entity_has(world, a, C_PIRATE)) pirate_hit(world, a, dmg_a, contact);
+        }
+        if (dmg_b > 0) {
+          if (entity_has(world, b, C_ASTEROID)) asteroid_hit(world, b, dmg_b, contact);
+          else if (entity_has(world, b, C_PIRATE)) pirate_hit(world, b, dmg_b, contact);
+        }
+      }
+    }
+  }
+}
+
+void system_signals(World *world, Quest *quest) {
+  Entity player = find_player(world);
+  if (player == MAX_ENTITIES) return;
+  Vec2f ppos = world->transforms[player].position;
+
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_SIGNAL | C_TRANSFORM)) continue;
+    if (entity_has(world, e, C_FROZEN)) continue;
+
+    Vec2f pos = world->transforms[e].position;
+    if (vec2f_length(vec2f_sub(pos, ppos)) > SIGNAL_RANGE) continue;
+
+    // One broadcast per beacon; it stays behind as scenery
+    if (world->signals[e].contract && quest->type == QUEST_NONE) {
+      quest_grant_bounty(quest, world, pos);
+      events_emit(EV_SIGNAL_CONTRACT, pos);
+    } else {
+      events_emit(EV_SIGNAL, pos);
+    }
+    world->masks[e] &= ~C_SIGNAL;
+  }
+}
+
+/** Hide the ship on alternating slices of its i-frames. */
+static bool damage_flicker(const World *world, Entity e) {
+  if (!entity_has(world, e, C_PLAYER)) return false;
+
+  const Player *player = &world->players[e];
+  return player->damage_timer > 0.0f &&
+         fmodf(player->damage_timer, 0.15f) > 0.075f;
+}
+
+/** Alpha multiplier: 1.0 for immortal entities, remaining lifetime
+ *  fraction otherwise. */
+static float fade(const World *world, Entity e) {
+  if (!entity_has(world, e, C_LIFETIME)) return 1.0f;
+
+  const Lifetime *lt = &world->lifetimes[e];
+  if (lt->initial <= 0.0f) return 1.0f;
+
+  float frac = lt->remaining / lt->initial;
+  return frac < 0.0f ? 0.0f : frac;
+}
+
+#define INTERP_SNAP_DIST 200.0f
+#define INTERP_SNAP_ANGLE 90.0f
+
+/** Blend the last two sim steps so motion is smooth at any display
+ *  rate; big deltas mean a spawn or a freeze catch-up teleport, which
+ *  must snap instead of smear. */
+Transform render_transform(const World *world, Entity e, float alpha) {
+  Transform cur = world->transforms[e];
+  Transform prev = world->prev_transforms[e];
+
+  Vec2f d = vec2f_sub(cur.position, prev.position);
+  float da = cur.angle - prev.angle;
+  if (fabsf(d.x) > INTERP_SNAP_DIST || fabsf(d.y) > INTERP_SNAP_DIST ||
+      fabsf(da) > INTERP_SNAP_ANGLE) {
+    return cur;
+  }
+
+  Transform out;
+  out.position = vec2f_add(prev.position, vec2f_mul(d, alpha));
+  out.angle = prev.angle + da * alpha;
+  return out;
+}
+
+/** Local points to a closed screen-space loop; returns point count. */
+static int wireframe_loop(const Transform *tf, const Wireframe *wf,
+                          Vec2f view_offset, SDL_FPoint *out) {
+  float rad = DEG_TO_RAD(tf->angle);
+  Vec2f screen_pos = vec2f_add(tf->position, view_offset);
+
+  for (int i = 0; i < wf->point_count; i++) {
+    Vec2f pt = vec2f_add(screen_pos, vec2f_rotate(wf->points[i], rad));
+    out[i] = (SDL_FPoint){ .x = pt.x, .y = pt.y };
+  }
+  out[wf->point_count] = out[0];
+
+  return wf->point_count + 1;
+}
+
+void system_render(World *world, SDL_Renderer *renderer, Vec2f view_offset,
+                   float alpha) {
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_TRANSFORM | C_WIREFRAME)) continue;
+    if (entity_has(world, e, C_FROZEN)) continue;  // off-screen by definition
+    if (damage_flicker(world, e)) continue;
+
+    Transform ti = render_transform(world, e, alpha);
+    Wireframe *wf = &world->wireframes[e];
+    float rad = DEG_TO_RAD(ti.angle);
+    Vec2f screen_pos = vec2f_add(ti.position, view_offset);
+
+    SDL_FPoint loop[WIREFRAME_MAX_POINTS + 1];
+    int count = wireframe_loop(&ti, wf, view_offset, loop);
+
+    // Core line — hit flash overrides to white; the halo comes from
+    // the bloom pass, not extra strokes
+    SDL_Color col = wf->flash > 0.0f ? (SDL_Color){ 255, 255, 255, 255 }
+                                     : wf->color;
+    SDL_SetRenderDrawColor(renderer, col.r, col.g, col.b,
+                           (Uint8)(col.a * fade(world, e)));
+    draw_lines(renderer, loop, count);
+
+    if (entity_has(world, e, C_PLAYER) && world->players[e].thrusting) {
+      Player *player = &world->players[e];
+
+      Vec2f local_exhaust = vec2f_new(0.0f, player->exhaust_offset);
+      Vec2f exhaust_world = vec2f_add(
+                                      screen_pos,
+                                      vec2f_rotate(local_exhaust, rad)
+                                      );
+
+      // Flame extends backward from ship, longer on upgraded engines
+      float fire_scale = sqrtf(player->thrust_force / SHIP_THRUST_FORCE);
+      Vec2f flame_dir = vec2f_rotate(vec2f_new(0.0f, 1.0f), rad);
+      float flicker = 0.6f + 0.4f * (float)(SDL_GetTicks() % 100) / 100.0f;
+      Vec2f flame_end = vec2f_add(
+                                  exhaust_world,
+                                  vec2f_mul(flame_dir, player->flame_length *
+                                                           flicker * fire_scale)
+                                  );
+
+      SDL_FPoint flame[2] = {
+        { .x = exhaust_world.x, .y = exhaust_world.y },
+        { .x = flame_end.x,     .y = flame_end.y     },
+      };
+
+      SDL_SetRenderDrawColor(renderer, 255, 160, 40, 255);
+      draw_lines(renderer, flame, 2);
+      SDL_SetRenderDrawColor(renderer, 255, 220, 100, 180);
+      draw_lines(renderer, flame, 2);
+    }
+  }
+}
+
+/** Lines are drawn a few times with 1px jitter so the downscale blur
+ *  has enough energy to produce a visible halo. */
+void system_render_glow(World *world, SDL_Renderer *renderer, Vec2f view_offset,
+                        float alpha) {
+  static const Vec2f JITTER[] = {
+    {  0.0f,  0.0f },
+    {  1.0f,  0.0f },
+    { -1.0f,  0.0f },
+    {  0.0f,  1.0f },
+    {  0.0f, -1.0f },
+  };
+  static const int JITTER_COUNT = (int)(sizeof(JITTER) / sizeof(JITTER[0]));
+
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_GLOW | C_TRANSFORM | C_WIREFRAME)) continue;
+    if (entity_has(world, e, C_FROZEN)) continue;
+    if (damage_flicker(world, e)) continue;
+
+    Transform ti = render_transform(world, e, alpha);
+    Wireframe *wf = &world->wireframes[e];
+    SDL_FPoint loop[WIREFRAME_MAX_POINTS + 1];
+    int count = wireframe_loop(&ti, wf, view_offset, loop);
+
+    SDL_Color glow = wf->flash > 0.0f ? (SDL_Color){ 255, 255, 255, 255 }
+                                      : wf->glow_color;
+    SDL_SetRenderDrawColor(renderer, glow.r, glow.g, glow.b,
+                           (Uint8)(255.0f * fade(world, e)));
+
+    for (int j = 0; j < JITTER_COUNT; j++) {
+      SDL_FPoint shifted[WIREFRAME_MAX_POINTS + 1];
+      for (int i = 0; i < count; i++) {
+        shifted[i] = (SDL_FPoint){ loop[i].x + JITTER[j].x,
+                                   loop[i].y + JITTER[j].y };
+      }
+      draw_lines(renderer, shifted, count);
+    }
+  }
+}

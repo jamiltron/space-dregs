@@ -1,0 +1,11 @@
+# Doxygen configuration for Space Dregs — unspecified options use defaults.
+PROJECT_NAME           = "Space Dregs"
+PROJECT_BRIEF          = "Vector-based 2D asteroids-alike"
+INPUT                  = src
+OUTPUT_DIRECTORY       = docs
+OPTIMIZE_OUTPUT_FOR_C  = YES
+JAVADOC_AUTOBRIEF      = YES
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+GENERATE_LATEX         = NO
+QUIET                  = YES

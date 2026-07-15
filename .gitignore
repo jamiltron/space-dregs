@@ -1,0 +1,8 @@
+.cache/
+build/
+build-web/
+compile_commands.json
+docs/
+dist/
+promo/
+.DS_Store
