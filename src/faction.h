@@ -23,8 +23,18 @@
 #define FACTION_KILL_HEAT 1.0f   /**< Heat per pirate kill. */
 #define FACTION_CAPITAL_HEAT 3.0f /**< Heat per battleship/mothership kill. */
 
-/** Adjust a standing, clamped to +/-FACTION_STANDING_MAX. */
+#define FACTION_TIER 20           /**< Standing where perks/penalties start. */
+#define FACTION_TIER_STRONG 50    /**< Standing where they deepen. */
+
+/** Adjust a standing, clamped to +/-FACTION_STANDING_MAX; emits
+ *  threshold-crossing events for dialogue. */
 void faction_add(World *world, FactionId id, int delta);
+
+/** Station price multiplier from guild standing (0.8x to 2.0x). */
+float faction_price_scale(const World *world);
+
+/** False while the guild refuses to deal contracts (standing <= -20). */
+bool faction_board_open(const World *world);
 
 /** A player pirate kill: clan standing drops; heat rises unless the
  *  victim was a hunter (they came to you). */

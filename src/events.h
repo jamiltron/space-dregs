@@ -55,6 +55,9 @@ typedef enum EventType {
   EV_HULL_LOW,            /**< Hull crossed into the red, or 10 lower. */
   EV_FREIGHTER_KILLED,    /**< The player broke a hauler — future faction hook. */
   EV_DISTRESS_ABANDONED,  /**< Answered the call, then flew off past the leash. */
+  EV_GUILD_RESPECTED,     /**< Guild standing rose through +20. */
+  EV_GUILD_OUTCAST,       /**< Guild standing fell through -20. */
+  EV_CLANS_RESPECTED,     /**< Clan standing rose through +20. */
   EVENT_TYPE_COUNT
 } EventType;
 

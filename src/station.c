@@ -101,9 +101,10 @@ bool station_try_buy_mine(World *world, Entity player) {
   if (p->mines_max == 0) {
     // First purchase: the rack itself, in stock or not at all
     if (!mine_stocked) return false;
-    if (p->money < STATION_MINE_RACK_PRICE) return false;
+    int cost = station_price(world, STATION_MINE_RACK_PRICE);
+    if (p->money < cost) return false;
 
-    p->money -= STATION_MINE_RACK_PRICE;
+    p->money -= cost;
     p->mines_max = MINE_AMMO_MAX;
     p->mines = MINE_AMMO_MAX;
     mine_stocked = false;  // sold
@@ -113,9 +114,10 @@ bool station_try_buy_mine(World *world, Entity player) {
 
   // Owned: any station restocks, one mine per press
   if (p->mines >= p->mines_max) return false;
-  if (p->money < STATION_MINE_PRICE) return false;
+  int cost = station_price(world, STATION_MINE_PRICE);
+  if (p->money < cost) return false;
 
-  p->money -= STATION_MINE_PRICE;
+  p->money -= cost;
   p->mines++;
   events_emit(EV_SCRAP_SOLD, world->transforms[player].position);
   return true;
@@ -130,9 +132,10 @@ bool station_try_buy_missile(World *world, Entity player) {
   if (p->missiles_max == 0) {
     // First purchase: the pod itself, in stock or not at all
     if (!missile_stocked) return false;
-    if (p->money < STATION_MISSILE_POD_PRICE) return false;
+    int cost = station_price(world, STATION_MISSILE_POD_PRICE);
+    if (p->money < cost) return false;
 
-    p->money -= STATION_MISSILE_POD_PRICE;
+    p->money -= cost;
     p->missiles_max = MISSILE_AMMO_MAX;
     p->missiles = MISSILE_AMMO_MAX;
     missile_stocked = false;  // sold
@@ -142,9 +145,10 @@ bool station_try_buy_missile(World *world, Entity player) {
 
   // Owned: any station restocks, one missile per press
   if (p->missiles >= p->missiles_max) return false;
-  if (p->money < STATION_MISSILE_PRICE) return false;
+  int cost = station_price(world, STATION_MISSILE_PRICE);
+  if (p->money < cost) return false;
 
-  p->money -= STATION_MISSILE_PRICE;
+  p->money -= cost;
   p->missiles++;
   events_emit(EV_SCRAP_SOLD, world->transforms[player].position);
   return true;
@@ -155,9 +159,10 @@ bool station_try_buy_shield(World *world, Entity player) {
 
   Player *p = &world->players[player];
   if (p->shield_max > 0) return false;  // already installed
-  if (p->money < STATION_SHIELD_PRICE) return false;
+  int cost = station_price(world, STATION_SHIELD_PRICE);
+  if (p->money < cost) return false;
 
-  p->money -= STATION_SHIELD_PRICE;
+  p->money -= cost;
   p->shield_max = SHIP_SHIELD_MAX;
   p->shield = SHIP_SHIELD_MAX;
   shield_stocked = false;  // sold
@@ -200,10 +205,12 @@ void station_update(World *world, Entity player, float dt) {
   Player *p = &world->players[player];
 
   // On dock entry, roll what special stock this stop carries —
-  // completed bounties raise the odds (reputation with the guild)
+  // positive guild standing raises the odds
   if (docked && !was_docked && entity_has(world, player, C_PLAYER)) {
+    int goodwill = world->factions.standing[FACTION_GUILD];
     float chance = STATION_SHIELD_BASE_CHANCE +
-                   STATION_SHIELD_BOUNTY_BONUS * (float)p->bounties_done;
+                   STATION_SHIELD_STANDING_BONUS *
+                       (float)(goodwill > 0 ? goodwill : 0);
     if (chance > STATION_SHIELD_MAX_CHANCE) chance = STATION_SHIELD_MAX_CHANCE;
     shield_stocked = world_randf(world) < chance;
     mine_stocked = world_randf(world) < chance;     // independent rolls
@@ -225,7 +232,7 @@ void station_update(World *world, Entity player, float dt) {
       refuel_acc -= STATION_FUEL_PER_CREDIT;
       if (p->money <= 0 || p->fuel >= p->fuel_max) break;
       p->money--;
-      p->fuel += STATION_FUEL_PER_CREDIT;
+      p->fuel += STATION_FUEL_PER_CREDIT / faction_price_scale(world);
       if (p->fuel > p->fuel_max) p->fuel = p->fuel_max;
       events_emit(EV_REFUEL_TICK, world->transforms[player].position);
     }
@@ -239,7 +246,9 @@ void station_update(World *world, Entity player, float dt) {
       repair_acc -= (float)STATION_HULL_PER_CREDIT;
       if (p->money <= 0 || p->hp >= p->max_hp) break;
       p->money--;
-      p->hp += STATION_HULL_PER_CREDIT;
+      int hull = (int)SDL_roundf((float)STATION_HULL_PER_CREDIT /
+                                 faction_price_scale(world));
+      p->hp += hull > 0 ? hull : 1;
       if (p->hp > p->max_hp) p->hp = p->max_hp;
       events_emit(EV_REPAIR_TICK, world->transforms[player].position);
     }
@@ -285,9 +294,14 @@ void station_update(World *world, Entity player, float dt) {
   if (sold) events_emit(EV_SCRAP_SOLD, world->transforms[player].position);
 }
 
+int station_price(const World *world, int base) {
+  int cost = (int)SDL_ceilf((float)base * faction_price_scale(world));
+  return cost > 0 ? cost : 1;
+}
+
 int station_upgrade_cost(const World *world, Entity player, UpgradeId id) {
   int level = world->players[player].upgrades[id];
-  return STATION_UPGRADES[id].base_cost * (level + 1);
+  return station_price(world, STATION_UPGRADES[id].base_cost * (level + 1));
 }
 
 bool station_try_buy(World *world, Entity player, UpgradeId id) {

@@ -212,7 +212,9 @@ void quest_update(Quest *q, World *world, Entity player, float dt) {
   // The tutorial wants a contract taken, so the board still deals
   if (q->type == QUEST_NONE || q->type == QUEST_TUTORIAL) {
     if (station_docked(world, player)) {
-      if (q->offer_count == 0) roll_offers(q, world);
+      if (q->offer_count == 0 && faction_board_open(world)) {
+        roll_offers(q, world);
+      }
     } else {
       q->offer_count = 0;  // rerolls on the next dock
     }

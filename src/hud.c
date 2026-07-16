@@ -4,6 +4,7 @@
 #include <math.h>
 #include "hud.h"
 #include "draw.h"
+#include "faction.h"
 #include "app.h"
 #include "font.h"
 #include "ship.h"
@@ -100,7 +101,8 @@ static void compass_render(World *world, Entity player, const Quest *quest,
 }
 
 /** Docked quest board: offers to take, or the active contract to abandon. */
-static void quest_board_render(const Quest *quest, SDL_Renderer *renderer) {
+static void quest_board_render(World *world, const Quest *quest,
+                               SDL_Renderer *renderer) {
   float x = WINDOW_WIDTH - 320.0f;
   float y = HUD_MARGIN;
   char buf[48];
@@ -117,7 +119,10 @@ static void quest_board_render(const Quest *quest, SDL_Renderer *renderer) {
     font_draw_text(renderer, "X - ABANDON CONTRACT", x, y, 12.0f, COLOR_DANGER);
     y += HUD_LINE_GAP * 0.9f;
   } else if (quest->offer_count == 0) {
-    font_draw_text(renderer, "NO CONTRACTS TODAY", x, y, 12.0f, COLOR_DIM);
+    font_draw_text(renderer,
+                   faction_board_open(world) ? "NO CONTRACTS TODAY"
+                                             : "NO WORK FOR YOUR KIND",
+                   x, y, 12.0f, COLOR_DIM);
     y += HUD_LINE_GAP * 0.9f;
   } else {
     for (int i = 0; i < quest->offer_count; i++) {
@@ -153,14 +158,21 @@ static void dock_panel_render(World *world, Entity player, const Quest *quest,
   font_draw_text(renderer, "Q - QUEST BOARD", x, y, 12.0f, COLOR_QUEST);
   y += HUD_LINE_GAP * 1.1f;
 
-  // Paid services: lit while useful and affordable
+  // Paid services: lit while useful and affordable; rates move with
+  // guild standing
+  float scale = faction_price_scale(world);
   bool can_refuel = p->money > 0 && p->fuel < p->fuel_max;
-  font_draw_text(renderer, "HOLD F - FUEL 5 PER CR", x, y, 12.0f,
+  SDL_snprintf(buf, sizeof(buf), "HOLD F - FUEL %.0f PER CR",
+               STATION_FUEL_PER_CREDIT / scale);
+  font_draw_text(renderer, buf, x, y, 12.0f,
                  can_refuel ? COLOR_FUEL : COLOR_DIM);
   y += HUD_LINE_GAP * 0.8f;
 
+  int hull_rate = (int)SDL_roundf((float)STATION_HULL_PER_CREDIT / scale);
   bool can_repair = p->money > 0 && p->hp < p->max_hp;
-  font_draw_text(renderer, "HOLD R - HULL 2 PER CR", x, y, 12.0f,
+  SDL_snprintf(buf, sizeof(buf), "HOLD R - HULL %d PER CR",
+               hull_rate > 0 ? hull_rate : 1);
+  font_draw_text(renderer, buf, x, y, 12.0f,
                  can_repair ? COLOR_SHIP : COLOR_DIM);
   y += HUD_LINE_GAP * 0.8f;
 
@@ -178,38 +190,36 @@ static void dock_panel_render(World *world, Entity player, const Quest *quest,
   // Special equipment appears only when this dock's stock roll hit;
   // bounties completed raise the odds (see station_update)
   if (p->shield_max == 0 && station_shield_in_stock()) {
-    SDL_snprintf(buf, sizeof(buf), "6 - ENERGY SHIELD - %d",
-                 STATION_SHIELD_PRICE);
+    int shield_cost = station_price(world, STATION_SHIELD_PRICE);
+    SDL_snprintf(buf, sizeof(buf), "6 - ENERGY SHIELD - %d", shield_cost);
     font_draw_text(renderer, buf, x, y, 12.0f,
-                   p->money >= STATION_SHIELD_PRICE ? COLOR_SHIELD
-                                                    : COLOR_DIM);
+                   p->money >= shield_cost ? COLOR_SHIELD : COLOR_DIM);
     y += HUD_LINE_GAP * 1.1f;
   }
   if (p->mines_max == 0 && station_mine_in_stock()) {
-    SDL_snprintf(buf, sizeof(buf), "7 - MINE RACK - %d",
-                 STATION_MINE_RACK_PRICE);
+    int rack_cost = station_price(world, STATION_MINE_RACK_PRICE);
+    SDL_snprintf(buf, sizeof(buf), "7 - MINE RACK - %d", rack_cost);
     font_draw_text(renderer, buf, x, y, 12.0f,
-                   p->money >= STATION_MINE_RACK_PRICE ? COLOR_MINE
-                                                       : COLOR_DIM);
+                   p->money >= rack_cost ? COLOR_MINE : COLOR_DIM);
     y += HUD_LINE_GAP * 1.1f;
   } else if (p->mines_max > 0 && p->mines < p->mines_max) {
-    SDL_snprintf(buf, sizeof(buf), "7 - MINE - %d", STATION_MINE_PRICE);
+    int mine_cost = station_price(world, STATION_MINE_PRICE);
+    SDL_snprintf(buf, sizeof(buf), "7 - MINE - %d", mine_cost);
     font_draw_text(renderer, buf, x, y, 12.0f,
-                   p->money >= STATION_MINE_PRICE ? COLOR_MINE : COLOR_DIM);
+                   p->money >= mine_cost ? COLOR_MINE : COLOR_DIM);
     y += HUD_LINE_GAP * 1.1f;
   }
   if (p->missiles_max == 0 && station_missile_in_stock()) {
-    SDL_snprintf(buf, sizeof(buf), "8 - MISSILE POD - %d",
-                 STATION_MISSILE_POD_PRICE);
+    int pod_cost = station_price(world, STATION_MISSILE_POD_PRICE);
+    SDL_snprintf(buf, sizeof(buf), "8 - MISSILE POD - %d", pod_cost);
     font_draw_text(renderer, buf, x, y, 12.0f,
-                   p->money >= STATION_MISSILE_POD_PRICE ? COLOR_MISSILE
-                                                         : COLOR_DIM);
+                   p->money >= pod_cost ? COLOR_MISSILE : COLOR_DIM);
     y += HUD_LINE_GAP * 1.1f;
   } else if (p->missiles_max > 0 && p->missiles < p->missiles_max) {
-    SDL_snprintf(buf, sizeof(buf), "8 - MISSILE - %d", STATION_MISSILE_PRICE);
+    int missile_cost = station_price(world, STATION_MISSILE_PRICE);
+    SDL_snprintf(buf, sizeof(buf), "8 - MISSILE - %d", missile_cost);
     font_draw_text(renderer, buf, x, y, 12.0f,
-                   p->money >= STATION_MISSILE_PRICE ? COLOR_MISSILE
-                                                     : COLOR_DIM);
+                   p->money >= missile_cost ? COLOR_MISSILE : COLOR_DIM);
     y += HUD_LINE_GAP * 1.1f;
   }
   for (int i = 0; i < UPGRADE_COUNT; i++) {
@@ -309,7 +319,7 @@ void hud_render(World *world, Entity player, const Quest *quest,
   compass_render(world, player, quest, distress, renderer);
 
   if (station_docked(world, player)) {
-    if (quest_board) quest_board_render(quest, renderer);
+    if (quest_board) quest_board_render(world, quest, renderer);
     else dock_panel_render(world, player, quest, renderer);
   }
 }

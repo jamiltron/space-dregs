@@ -32,6 +32,9 @@ static LinePool distress_ambush_pool = { .last = -1 };
 static LinePool distress_cleared_pool = { .last = -1 };
 static LinePool freighter_killed_pool = { .last = -1 };
 static LinePool distress_abandoned_pool = { .last = -1 };
+static LinePool guild_respected_pool = { .last = -1 };
+static LinePool guild_outcast_pool = { .last = -1 };
+static LinePool clans_respected_pool = { .last = -1 };
 
 /** Maps a dialogue.txt [section] tag to its pool; the fallback keeps
  *  that voice alive if the file is missing or the section is empty. */
@@ -65,6 +68,12 @@ static const SectionMap SECTIONS[] = {
     "THAT WAS A CIVILIAN HAULER - THE GUILD WON'T FORGET" },
   { "[distress-abandoned", &distress_abandoned_pool,
     "RESCUE OFF THE SCOPE - THE HAULER'S ON ITS OWN" },
+  { "[guild-respected", &guild_respected_pool,
+    "THE GUILD KNOWS YOUR NAME NOW - PRICES REFLECT IT" },
+  { "[guild-outcast", &guild_outcast_pool,
+    "GUILD NOTICE - NO CONTRACTS, AND YOU PAY OUTSIDER RATES" },
+  { "[clans-respected", &clans_respected_pool,
+    "CLAN CHANNELS CALL YOU FRIEND - THE PACKS WILL PASS YOU BY" },
 };
 static const int SECTION_COUNT = (int)(sizeof(SECTIONS) / sizeof(SECTIONS[0]));
 
@@ -249,6 +258,15 @@ void dialogue_on_event(EventType type, Vec2f pos) {
     break;
   case EV_DISTRESS_ABANDONED:
     say(pick(&distress_abandoned_pool), (SDL_Color){ 255, 180, 60, 255 });
+    break;
+  case EV_GUILD_RESPECTED:
+    say(pick(&guild_respected_pool), (SDL_Color){ 80, 220, 230, 255 });
+    break;
+  case EV_GUILD_OUTCAST:
+    say(pick(&guild_outcast_pool), (SDL_Color){ 255, 90, 80, 255 });
+    break;
+  case EV_CLANS_RESPECTED:
+    say(pick(&clans_respected_pool), (SDL_Color){ 255, 180, 60, 255 });
     break;
   case EV_TUTORIAL_DONE: {
     char buf[DIALOGUE_MAX];

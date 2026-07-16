@@ -28,7 +28,8 @@
 #define STATION_MISSILE_POD_PRICE 160    /**< Missile pod, arrives loaded. */
 #define STATION_MISSILE_PRICE 25         /**< One replacement missile. */
 #define STATION_SHIELD_BASE_CHANCE 0.15f /**< Stock odds per dock... */
-#define STATION_SHIELD_BOUNTY_BONUS 0.20f/**< ...plus this per bounty done. */
+#define STATION_SHIELD_STANDING_BONUS 0.01f /**< ...plus this per point of
+                                                 positive guild standing. */
 #define STATION_SHIELD_MAX_CHANCE 0.90f
 #define STATION_DEBT_RATE 150.0f     /**< Credits per second while holding pay. */
 #define STATION_DEBT_QUANTUM 5       /**< Credits per payment tick. */
@@ -86,6 +87,9 @@ void station_update(World *world, Entity player, float dt);
 
 /** Price of the next level of an upgrade for this player. */
 int station_upgrade_cost(const World *world, Entity player, UpgradeId id);
+
+/** A base price scaled by guild standing, rounded up, never below 1. */
+int station_price(const World *world, int base);
 
 /** Buy an upgrade if docked and affordable.
  *  @return true on purchase. */
