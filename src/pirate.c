@@ -49,7 +49,7 @@ static const PirateStats STATS[PIRATE_ARCHETYPE_COUNT] = {
   },
   [PIRATE_BATTLESHIP] = {
     .size = 34.0f,
-    .rot_speed = 40.0f,       // a capital ship comes about slowly
+    .rot_speed = 40.0f,
     .thrust = 340.0f,
     .max_speed = 240.0f,
     .fire_interval = 2.4f,
@@ -59,6 +59,22 @@ static const PirateStats STATS[PIRATE_ARCHETYPE_COUNT] = {
     .hp = 24,
     .ram_damage = 40,
     .scrap_base = 12,
+  },
+  [PIRATE_MOTHERSHIP] = {
+    .size = 46.0f,
+    .rot_speed = 25.0f,
+    .thrust = 120.0f,
+    .max_speed = 90.0f,
+    .fire_interval = 1.6f,
+    .deploy_interval = 3.0f,
+    .gun_count = 3,
+    .gun_bearings = { 0.0f, -90.0f, 90.0f },  // nose + both broadsides
+    .laser = true,
+    .sense_radius = 800.0f,
+    .damping = 0.4f,
+    .hp = 40,
+    .ram_damage = 45,
+    .scrap_base = 20,
   },
 };
 
@@ -127,6 +143,28 @@ static void battleship_shape(Wireframe *wf, float size) {
   wf->glow_color = (SDL_Color){ 255, 60, 130, 255 };
 }
 
+/** Mothership: a broad violet carrier wedge, winged amidships, with a
+ *  notched hangar mouth at the stern. */
+static void mothership_shape(Wireframe *wf, float size) {
+  wf->points[0]  = vec2f_new(0.0f, -size);
+  wf->points[1]  = vec2f_new(size * 0.35f, -size * 0.6f);
+  wf->points[2]  = vec2f_new(size * 0.75f, -size * 0.1f);
+  wf->points[3]  = vec2f_new(size * 0.75f, size * 0.4f);
+  wf->points[4]  = vec2f_new(size * 0.45f, size * 0.55f);
+  wf->points[5]  = vec2f_new(size * 0.5f, size * 0.9f);
+  wf->points[6]  = vec2f_new(size * 0.2f, size * 0.75f);
+  wf->points[7]  = vec2f_new(0.0f, size * 0.95f);
+  wf->points[8]  = vec2f_new(-size * 0.2f, size * 0.75f);
+  wf->points[9]  = vec2f_new(-size * 0.5f, size * 0.9f);
+  wf->points[10] = vec2f_new(-size * 0.45f, size * 0.55f);
+  wf->points[11] = vec2f_new(-size * 0.75f, size * 0.4f);
+  wf->points[12] = vec2f_new(-size * 0.75f, -size * 0.1f);
+  wf->points[13] = vec2f_new(-size * 0.35f, -size * 0.6f);
+  wf->point_count = 14;
+  wf->color      = (SDL_Color){ 170, 100, 255, 255 };
+  wf->glow_color = (SDL_Color){ 140, 70, 255, 255 };
+}
+
 /** Wander/chase/fire behavior lives in system_pirate; death and hit
  *  response in pirate_hit. Stats come from the archetype table. */
 Entity pirate_spawn(World *world, Vec2f position, PirateArchetype type) {
@@ -152,6 +190,7 @@ Entity pirate_spawn(World *world, Vec2f position, PirateArchetype type) {
   world->pirates[e] = (Pirate){
     .fire_cooldown = st->fire_interval,  // no instant snap shots
     .missile_cooldown = st->missile_interval,
+    .deploy_cooldown = st->deploy_interval,
     .wander_timer  = 0.0f,
     .wander_dir    = world_randf(world) * 360.0f,
     .hp            = st->hp,
@@ -162,6 +201,7 @@ Entity pirate_spawn(World *world, Vec2f position, PirateArchetype type) {
   if (type == PIRATE_BRUTE) brute_shape(wf, st->size);
   else if (type == PIRATE_DRONE) drone_shape(wf, st->size);
   else if (type == PIRATE_BATTLESHIP) battleship_shape(wf, st->size);
+  else if (type == PIRATE_MOTHERSHIP) mothership_shape(wf, st->size);
   else dart_shape(wf, st->size);
 
   return e;

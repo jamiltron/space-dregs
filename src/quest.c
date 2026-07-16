@@ -90,7 +90,7 @@ bool quest_try_accept(Quest *q, World *world, Entity player, int index) {
   if (!station_docked(world, player)) return false;
 
   if (q->type == QUEST_TUTORIAL) {
-    world->players[player].money += q->reward;  // starter bonus
+    world->players[player].money += q->reward;
     events_emit(EV_TUTORIAL_DONE, world->transforms[player].position);
   }
 

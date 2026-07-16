@@ -288,16 +288,29 @@ void system_pirate(World *world, float dt) {
       vel->value = vec2f_add(vel->value, vec2f_mul(dir, st->thrust * dt));
     }
 
+    // Single-gun ships hold fire until lined up; a multi-mount volley
+    // covers its bearings regardless of aim
     if (!st->kamikaze && engaged && dist < PIRATE_FIRE_RANGE &&
-        fabsf(heading_error) < 12.0f && pirate->fire_cooldown <= 0.0f) {
+        pirate->fire_cooldown <= 0.0f &&
+        (st->gun_count > 1 || fabsf(heading_error) < 12.0f)) {
       pirate->fire_cooldown = st->fire_interval;
 
-      Vec2f muzzle = vec2f_add(tf->position,
-                               vec2f_mul(dir, st->size + 4.0f));
-      Vec2f bullet_vel = vec2f_add(
-          vel->value, vec2f_mul(dir, BULLET_SPEED * PIRATE_BULLET_SPEED_SCALE));
-      bullet_spawn(world, muzzle, bullet_vel, tf->angle, true);
-      events_emit(EV_PIRATE_FIRED, muzzle);
+      int guns = st->gun_count > 0 ? st->gun_count : 1;
+      for (int g = 0; g < guns; g++) {
+        float bearing = tf->angle + st->gun_bearings[g];
+        Vec2f gdir = vec2f_dir(DEG_TO_RAD(bearing));
+        Vec2f muzzle = vec2f_add(tf->position,
+                                 vec2f_mul(gdir, st->size + 4.0f));
+        Vec2f bullet_vel = vec2f_add(
+            vel->value,
+            vec2f_mul(gdir, BULLET_SPEED * PIRATE_BULLET_SPEED_SCALE));
+        Entity b = bullet_spawn(world, muzzle, bullet_vel, bearing, true);
+        if (st->laser) {
+          world->wireframes[b].color = (SDL_Color){ 130, 255, 120, 255 };
+          world->wireframes[b].glow_color = (SDL_Color){ 90, 255, 90, 255 };
+        }
+      }
+      events_emit(EV_PIRATE_FIRED, tf->position);  // one report per volley
     }
 
     if (st->missile_interval > 0.0f) {
@@ -310,6 +323,29 @@ void system_pirate(World *world, float dt) {
         Vec2f nose = vec2f_add(tf->position, vec2f_mul(dir, st->size + 6.0f));
         missile_spawn(world, nose, tf->angle, true);
         events_emit(EV_MISSILE_FIRED, nose);
+      }
+    }
+
+    if (st->deploy_interval > 0.0f) {
+      pirate->deploy_cooldown -= dt;
+      if (engaged && pirate->deploy_cooldown <= 0.0f) {
+        pirate->deploy_cooldown = st->deploy_interval;
+
+        // The bay holds launch while enough drones already swarm nearby
+        int nearby = 0;
+        for (Entity d2 = 0; d2 < world->high_water; d2++) {
+          if (!entity_has(world, d2, C_PIRATE | C_TRANSFORM)) continue;
+          if (world->pirates[d2].archetype != PIRATE_DRONE) continue;
+          Vec2f dd = vec2f_sub(world->transforms[d2].position, tf->position);
+          if (vec2f_length(dd) < PIRATE_DEPLOY_RADIUS) nearby++;
+        }
+        if (nearby < PIRATE_DEPLOY_CAP) {
+          Vec2f bay = vec2f_sub(tf->position, vec2f_mul(dir, st->size + 8.0f));
+          Entity d = pirate_spawn(world, bay, PIRATE_DRONE);
+          world->velocities[d].value =
+              vec2f_add(vel->value, vec2f_mul(dir, -120.0f));
+          events_emit(EV_DRONE_DEPLOYED, bay);
+        }
       }
     }
   }
@@ -550,7 +586,7 @@ void system_collision(World *world) {
           }
           entity_destroy(world, bullet);
         } else if (hostile && entity_has(world, other, C_MINE)) {
-          mine_explode(world, other);  // decoyed seeker takes the bait
+          mine_explode(world, other);
           entity_destroy(world, bullet);
         }
         continue;

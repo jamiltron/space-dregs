@@ -32,6 +32,12 @@
 #define PIRATE_DRONE_CHANCE 0.20f      /**< Per pirate. */
 #define PIRATE_BATTLESHIP_MIN_DIST 3500.0f  /**< Battleships haunt the far deep. */
 #define PIRATE_BATTLESHIP_CHANCE 0.06f      /**< Per pirate; much rarer than the rest. */
+#define PIRATE_MOTHERSHIP_MIN_DIST 4500.0f  /**< Motherships rule the frontier. */
+#define PIRATE_MOTHERSHIP_CHANCE 0.03f      /**< Per pirate; the rarest sight. */
+
+#define PIRATE_MAX_GUNS 3
+#define PIRATE_DEPLOY_CAP 5        /**< No new drones with this many already close. */
+#define PIRATE_DEPLOY_RADIUS 800.0f /**< Radius of that drone head-count. */
 
 /** Pirate archetypes; per-type tuning lives in the table in pirate.c. */
 typedef enum PirateArchetype {
@@ -40,6 +46,8 @@ typedef enum PirateArchetype {
   PIRATE_DRONE,       /**< Kamikaze mine: sits dormant, then rams and explodes. */
   PIRATE_BATTLESHIP,  /**< Long capital hull: heavy hp, fast in a line,
                            slow to turn, lobs seeking missiles. */
+  PIRATE_MOTHERSHIP,  /**< Carrier: barely moves, laser mounts on three
+                           bearings, spits kamikaze drones while engaged. */
   PIRATE_ARCHETYPE_COUNT
 } PirateArchetype;
 
@@ -49,8 +57,12 @@ typedef struct PirateStats {
   float rot_speed;      /**< Deg/s. */
   float thrust;
   float max_speed;
-  float fire_interval;  /**< Seconds between shots. */
+  float fire_interval;  /**< Seconds between shots (a volley if multi-gun). */
   float missile_interval; /**< Seconds between seeking missiles; 0 = no launcher. */
+  float deploy_interval;  /**< Seconds between drone launches; 0 = no bay. */
+  int   gun_count;      /**< Fixed mounts; 0 reads as one nose gun. */
+  float gun_bearings[PIRATE_MAX_GUNS]; /**< Mount angles off the nose, degrees. */
+  bool  laser;          /**< Shots render as green laser bolts. */
   float sense_radius;   /**< Notices the player inside this. */
   float damping;        /**< Velocity decay per second. */
   int   hp;

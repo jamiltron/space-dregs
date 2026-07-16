@@ -44,6 +44,7 @@ typedef enum EventType {
   EV_MINE_RACK_BOUGHT,    /**< Dialogue announces the drop key. */
   EV_MISSILE_POD_BOUGHT,  /**< Dialogue announces the launch key. */
   EV_TUTORIAL_DONE,       /**< First contract taken; starter bonus paid. */
+  EV_DRONE_DEPLOYED,      /**< A mothership bay spat out a kamikaze drone. */
   EVENT_TYPE_COUNT
 } EventType;
 

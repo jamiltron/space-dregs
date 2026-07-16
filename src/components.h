@@ -108,6 +108,7 @@ typedef struct Bullet {
 typedef struct Pirate {
   float fire_cooldown;
   float missile_cooldown;  /**< Only ticks for archetypes with a missile_interval. */
+  float deploy_cooldown;   /**< Only ticks for archetypes with a deploy_interval. */
   float wander_timer;  /**< Time until the next idle heading change. */
   float wander_dir;    /**< Idle heading, degrees. */
   int hp;
