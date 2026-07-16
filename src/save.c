@@ -254,13 +254,14 @@ bool save_read(App *app) {
   SDL_free(data);
 
   quest_reset(&app->quest);
-  if (q_type > QUEST_NONE && q_type <= QUEST_DELIVER) {
+  if (q_type > QUEST_NONE && q_type <= QUEST_TUTORIAL) {
     app->quest.type = (QuestType)q_type;
     app->quest.reward = q_reward;
     app->quest.target_pos = q_pos;
     app->quest.carrying = q_carrying != 0;
     quest_restore(&app->quest, &app->world);
   }
+  distress_reset(&app->distress);  // calls are transient; not saved
 
   app->camera = camera;
   app->time = time;

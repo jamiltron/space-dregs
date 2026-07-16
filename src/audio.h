@@ -25,6 +25,9 @@ typedef enum SfxId {
   SFX_UPGRADE,       /**< Purchase or quest complete. */
   SFX_REFUEL,        /**< One credit of fuel: low liquid glug. */
   SFX_REPAIR,        /**< One credit of hull: ratchet clank. */
+  SFX_MAYDAY,        /**< Two-tone distress siren. */
+  SFX_FUEL_LOW,      /**< Soft single chip: fuel in the red. */
+  SFX_HULL_LOW,      /**< Descending two-tone: hull in the red. */
   SFX_COUNT
 } SfxId;
 

@@ -54,6 +54,14 @@ static const EventResponse RESPONSES[EVENT_TYPE_COUNT] = {
   [EV_MISSILE_POD_BOUGHT] = { SFX_UPGRADE, true, 0.0f },
   [EV_TUTORIAL_DONE]     = { SFX_COIN, true, 0.0f },
   [EV_DRONE_DEPLOYED]    = { SFX_CHIP, true, 0.0f },
+  [EV_DISTRESS_CALL]     = { SFX_MAYDAY, true, 0.0f },
+  [EV_DISTRESS_ARRIVED]  = { SFX_SHOOT, false, 0.0f },
+  [EV_DISTRESS_SAVED]    = { SFX_COIN, true, 0.0f },
+  [EV_DISTRESS_LOST]     = { SFX_SHOOT, false, 0.0f },
+  [EV_DISTRESS_AMBUSH]   = { SFX_SHOOT_PIRATE, true, 0.0f },
+  [EV_DISTRESS_CLEARED]  = { SFX_COIN, true, 0.0f },
+  [EV_FUEL_LOW]          = { SFX_FUEL_LOW, true, 0.0f },
+  [EV_HULL_LOW]          = { SFX_HULL_LOW, true, 0.0f },
 };
 
 void events_emit(EventType type, Vec2f pos) {

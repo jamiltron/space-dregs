@@ -61,6 +61,7 @@ static void game_reset(Uint64 seed) {
   chunks_update(&app.chunks, &app.world, spawn);
   quest_reset(&app.quest);
   quest_grant_tutorial(&app.quest, spawn);
+  distress_reset(&app.distress);
   app.quest_board = false;
 
   app.camera = spawn;
@@ -119,6 +120,7 @@ static void simulate(float dt) {
   system_signals(&app.world, &app.quest);
   station_update(&app.world, app.player, dt);
   quest_update(&app.quest, &app.world, app.player, dt);
+  distress_update(&app.distress, &app.world, app.player, dt);
 
   // The board closes itself when you drift off the station
   if (app.quest_board && !station_docked(&app.world, app.player)) {
@@ -408,8 +410,8 @@ static void main_loop(void *arg) {
 
   system_render(&app.world, app.renderer, view_offset, alpha);
   if (app.state != STATE_MENU) {
-    hud_render(&app.world, app.player, &app.quest, app.quest_board,
-               app.renderer);
+    hud_render(&app.world, app.player, &app.quest, &app.distress,
+               app.quest_board, app.renderer);
     dialogue_render(app.renderer);
   }
 

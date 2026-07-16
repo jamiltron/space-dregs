@@ -34,6 +34,7 @@ enum {
   C_SIGNAL    = 1 << 14, /**< Broadcast beacon; speaks once when approached. */
   C_MINE      = 1 << 15, /**< Dropped charge: timed fuse, area blast. */
   C_MISSILE   = 1 << 16, /**< Seeking warhead; guided by system_missiles. */
+  C_DISTRESS  = 1 << 17, /**< Distress-scene member (freighter or raider). */
 };
 
 /** Station upgrades, bought with credits; levels live on the Player. */
@@ -75,6 +76,8 @@ typedef struct Player {
   float exhaust_timer;   /**< Paces thrust particle emission. */
   float magnet_radius;   /**< Scrap pull range (upgradeable). */
   float shield_regen;    /**< Seconds accumulated toward the next shield point. */
+  float fuel_warn_next;  /**< Fuel level at/below which the low-fuel chip fires. */
+  int hull_warn_next;    /**< Hull level at/below which the low-hull siren fires. */
   int shield;            /**< Rechargeable layer absorbed before hull. */
   int shield_max;        /**< 0 until the energy shield is bought. */
   int mines;             /**< Mine ammo aboard; restocked at stations. */

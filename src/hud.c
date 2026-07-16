@@ -6,14 +6,15 @@
 #include "draw.h"
 #include "app.h"
 #include "font.h"
+#include "ship.h"
 #include "station.h"
 
 #define HUD_MARGIN 16.0f
 #define HUD_TEXT_SIZE 16.0f
 #define HUD_LINE_GAP 26.0f
 #define HUD_VALUE_RIGHT 216.0f  // stat values right-align to this column
-#define HUD_LOW_HULL 30
-#define HUD_LOW_FUEL 0.2f  // fraction of tank
+#define HUD_LOW_HULL SHIP_LOW_HULL       // red zones match the warning beeps
+#define HUD_LOW_FUEL SHIP_LOW_FUEL_FRAC
 
 static const SDL_Color COLOR_SHIP   = { 180, 200, 255, 255 };
 static const SDL_Color COLOR_DANGER = { 255, 90, 80, 255 };
@@ -25,6 +26,7 @@ static const SDL_Color COLOR_QUEST  = { 230, 120, 255, 255 };
 static const SDL_Color COLOR_SHIELD = { 130, 200, 255, 255 };
 static const SDL_Color COLOR_MINE = { 255, 110, 95, 255 };
 static const SDL_Color COLOR_MISSILE = { 255, 200, 120, 255 };
+static const SDL_Color COLOR_DISTRESS = { 255, 180, 60, 255 };
 
 #define COMPASS_EDGE_INSET 48.0f
 #define COMPASS_TARGET_EXTENT 100.0f  /**< Target size + slack for the hide test. */
@@ -75,7 +77,7 @@ static void compass_arrow(SDL_Renderer *renderer, Vec2f delta,
 }
 
 static void compass_render(World *world, Entity player, const Quest *quest,
-                           SDL_Renderer *renderer) {
+                           const Distress *distress, SDL_Renderer *renderer) {
   Vec2f player_pos = world->transforms[player].position;
 
   Entity station = station_nearest(world, player_pos);
@@ -88,6 +90,12 @@ static void compass_render(World *world, Entity player, const Quest *quest,
   Vec2f quest_pos;
   if (quest_compass_target(quest, &quest_pos)) {
     compass_arrow(renderer, vec2f_sub(quest_pos, player_pos), COLOR_QUEST);
+  }
+
+  Vec2f distress_pos;
+  if (distress_compass_target(distress, &distress_pos)) {
+    compass_arrow(renderer, vec2f_sub(distress_pos, player_pos),
+                  COLOR_DISTRESS);
   }
 }
 
@@ -219,7 +227,8 @@ static void stat_line(SDL_Renderer *renderer, const char *label,
 }
 
 void hud_render(World *world, Entity player, const Quest *quest,
-                bool quest_board, SDL_Renderer *renderer) {
+                const Distress *distress, bool quest_board,
+                SDL_Renderer *renderer) {
   if (!entity_has(world, player, C_PLAYER)) return;
 
   const Player *p = &world->players[player];
@@ -273,13 +282,23 @@ void hud_render(World *world, Entity player, const Quest *quest,
   if (quest->complete_timer > 0.0f) {
     SDL_snprintf(buf, sizeof(buf), "QUEST COMPLETE");
     font_draw_text(renderer, buf, HUD_MARGIN, y, 12.0f, COLOR_QUEST);
+    y += HUD_LINE_GAP * 0.8f;
   } else if (quest->type != QUEST_NONE) {
     SDL_snprintf(buf, sizeof(buf), "%s +%d CR",
                  quest_status_label(quest), quest->reward);
     font_draw_text(renderer, buf, HUD_MARGIN, y, 12.0f, COLOR_QUEST);
+    y += HUD_LINE_GAP * 0.8f;
   }
 
-  compass_render(world, player, quest, renderer);
+  if (distress->state == DISTRESS_CALLED) {
+    SDL_snprintf(buf, sizeof(buf), "MAYDAY %d", (int)SDL_ceilf(distress->timer));
+    font_draw_text(renderer, buf, HUD_MARGIN, y, 12.0f, COLOR_DISTRESS);
+  } else if (distress->state == DISTRESS_FIGHT) {
+    font_draw_text(renderer, "MAYDAY - CLEAR THE RAIDERS", HUD_MARGIN, y,
+                   12.0f, COLOR_DISTRESS);
+  }
+
+  compass_render(world, player, quest, distress, renderer);
 
   if (station_docked(world, player)) {
     if (quest_board) quest_board_render(quest, renderer);

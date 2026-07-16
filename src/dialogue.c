@@ -171,6 +171,30 @@ void dialogue_on_event(EventType type, Vec2f pos) {
     say_key_tip("MISSILE POD FITTED - PRESS %s TO FIRE, IT SEEKS",
                 ACT_MISSILE, (SDL_Color){ 255, 200, 120, 255 });
     break;
+  case EV_DISTRESS_CALL:
+    say("MAYDAY - FREIGHTER UNDER ATTACK - AMBER MARKER ON NAV",
+        (SDL_Color){ 255, 180, 60, 255 });
+    break;
+  case EV_DISTRESS_ARRIVED:
+    say("GET THEM OFF ME DREG - HOLD THEM OFF",
+        (SDL_Color){ 255, 180, 60, 255 });
+    break;
+  case EV_DISTRESS_SAVED:
+    say("HAUL INTACT - SALVAGE JETTISONED, CREDITS WIRED",
+        (SDL_Color){ 255, 180, 60, 255 });
+    break;
+  case EV_DISTRESS_LOST:
+    say("SIGNAL LOST - ONLY DUST ON THE SCAN",
+        (SDL_Color){ 255, 180, 60, 255 });
+    break;
+  case EV_DISTRESS_AMBUSH:
+    say("NO FREIGHTER ON SCAN - IT'S BAIT",
+        (SDL_Color){ 255, 90, 80, 255 });
+    break;
+  case EV_DISTRESS_CLEARED:
+    say("DECOY CLEARED - SALVAGE BOUNTY WIRED",
+        (SDL_Color){ 255, 180, 60, 255 });
+    break;
   case EV_TUTORIAL_DONE: {
     char buf[DIALOGUE_MAX];
     SDL_snprintf(buf, sizeof(buf), "SIGNING BONUS WIRED - %d CR - GOOD HUNTING",

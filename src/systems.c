@@ -136,6 +136,40 @@ void system_player(World *world, float dt) {
       player->shield_regen = 0.0f;
     }
 
+    // Low-resource warnings: one beep on entering the red, another at
+    // each SHIP_WARN_STEP lower. The armed level tracks partial
+    // refuel/repair inside the red so a renewed drop beeps again.
+    float red_fuel = player->fuel_max * SHIP_LOW_FUEL_FRAC;
+    if (player->fuel > red_fuel) {
+      player->fuel_warn_next = red_fuel;
+    } else {
+      if (player->fuel <= player->fuel_warn_next) {
+        events_emit(EV_FUEL_LOW, tf->position);
+      }
+      while (player->fuel_warn_next >= player->fuel) {
+        player->fuel_warn_next -= SHIP_WARN_STEP;
+      }
+      while (player->fuel_warn_next + SHIP_WARN_STEP < player->fuel &&
+             player->fuel_warn_next + SHIP_WARN_STEP <= red_fuel) {
+        player->fuel_warn_next += SHIP_WARN_STEP;
+      }
+    }
+
+    if (player->hp > SHIP_LOW_HULL) {
+      player->hull_warn_next = SHIP_LOW_HULL;
+    } else if (player->hp > 0) {
+      if (player->hp <= player->hull_warn_next) {
+        events_emit(EV_HULL_LOW, tf->position);
+      }
+      while (player->hull_warn_next >= player->hp) {
+        player->hull_warn_next -= (int)SHIP_WARN_STEP;
+      }
+      while (player->hull_warn_next + (int)SHIP_WARN_STEP < player->hp &&
+             player->hull_warn_next + (int)SHIP_WARN_STEP <= SHIP_LOW_HULL) {
+        player->hull_warn_next += (int)SHIP_WARN_STEP;
+      }
+    }
+
     player->fire_cooldown -= dt;
 
     if (sim_input(ACT_FIRE) && player->fire_cooldown <= 0.0f) {

@@ -20,6 +20,9 @@
 #define SHIP_SHIELD_MAX 10          /**< Capacity of the purchasable shield. */
 #define SHIP_SHIELD_REGEN_SECS 10.0f /**< Seconds per shield point regained. */
 #define SHIP_FUEL_MAX 100.0f
+#define SHIP_LOW_HULL 30            /**< Red zone: HUD color + warning siren. */
+#define SHIP_LOW_FUEL_FRAC 0.2f     /**< Red zone as a fraction of the tank. */
+#define SHIP_WARN_STEP 10.0f        /**< Warnings re-fire every this much lower. */
 #define SHIP_FUEL_BURN 1.25f        /**< Per second of thrust. */
 #define SHIP_DAMAGE_COOLDOWN 1.5f   /**< I-frames after taking a hit. */
 #define SHIP_SPAWN_PROTECTION 2.0f  /**< I-frames on (re)spawn. */

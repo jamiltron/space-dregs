@@ -8,12 +8,14 @@
 #ifndef _SD_HUD_H
 #define _SD_HUD_H
 #include <SDL3/SDL.h>
+#include "distress.h"
 #include "ecs.h"
 #include "quest.h"
 
 /** Draw the full HUD for a living player; no-op while dead.
  *  quest_board switches the docked panel to the contract board. */
 void hud_render(World *world, Entity player, const Quest *quest,
-                bool quest_board, SDL_Renderer *renderer);
+                const Distress *distress, bool quest_board,
+                SDL_Renderer *renderer);
 
 #endif

@@ -10,6 +10,7 @@
 #include <SDL3/SDL.h>
 #include <stdbool.h>
 #include "chunks.h"
+#include "distress.h"
 #include "ecs.h"
 #include "glow.h"
 #include "quest.h"
@@ -33,6 +34,7 @@ typedef struct App {
   World world;
   Chunks chunks;
   Quest quest;
+  Distress distress;
   Starfield starfield;
   Glow glow;
   GameState state;

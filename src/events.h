@@ -45,6 +45,14 @@ typedef enum EventType {
   EV_MISSILE_POD_BOUGHT,  /**< Dialogue announces the launch key. */
   EV_TUTORIAL_DONE,       /**< First contract taken; starter bonus paid. */
   EV_DRONE_DEPLOYED,      /**< A mothership bay spat out a kamikaze drone. */
+  EV_DISTRESS_CALL,       /**< Mayday received; amber marker on nav. */
+  EV_DISTRESS_ARRIVED,    /**< On scene with the freighter still alive. */
+  EV_DISTRESS_SAVED,      /**< Raiders cleared; rescue paid out. */
+  EV_DISTRESS_LOST,       /**< The clock ran out; only a wreck left. */
+  EV_DISTRESS_AMBUSH,     /**< The call was bait and it just sprang. */
+  EV_DISTRESS_CLEARED,    /**< Bait pack destroyed; decoy salvage paid. */
+  EV_FUEL_LOW,            /**< Fuel crossed into the red, or 10 lower. */
+  EV_HULL_LOW,            /**< Hull crossed into the red, or 10 lower. */
   EVENT_TYPE_COUNT
 } EventType;
 

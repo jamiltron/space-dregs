@@ -107,6 +107,15 @@ static void gen_all_clips(void) {
   // they read as a pouring stream and a socket-wrench ratchet
   gen_sweep(SFX_REFUEL, 0.07f, 180.0f, 330.0f, 0.13f, 18.0f);
   gen_burst(SFX_REPAIR, 0.05f, 0.3f, 40.0f, 0.6f, 620.0f, 0.1f);
+
+  const float mayday[] = { 640.0f, 460.0f, 640.0f, 460.0f };
+  gen_notes(SFX_MAYDAY, mayday, 4, 0.16f, 0.18f);
+
+  const float fuel_low[] = { 294.0f };
+  gen_notes(SFX_FUEL_LOW, fuel_low, 1, 0.1f, 0.13f);
+
+  const float hull_low[] = { 880.0f, 587.0f };
+  gen_notes(SFX_HULL_LOW, hull_low, 2, 0.12f, 0.15f);
 }
 
 bool audio_init(void) {
