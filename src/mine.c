@@ -3,6 +3,7 @@
 
 #include "mine.h"
 #include "asteroid.h"
+#include "distress.h"
 #include "events.h"
 #include "particles.h"
 #include "pirate.h"
@@ -59,7 +60,8 @@ void mine_explode(World *world, Entity e) {
     if (victim_count >= 64) break;
     if (!entity_has(world, v, C_TRANSFORM)) continue;
     if (entity_has(world, v, C_FROZEN)) continue;
-    if (!(world->masks[v] & (C_PIRATE | C_ASTEROID | C_PLAYER | C_MINE)))
+    if (!(world->masks[v] &
+          (C_PIRATE | C_ASTEROID | C_PLAYER | C_MINE | C_FREIGHTER)))
       continue;
 
     float d = vec2f_length(vec2f_sub(world->transforms[v].position, center));
@@ -78,6 +80,8 @@ void mine_explode(World *world, Entity e) {
       asteroid_hit(world, v, MINE_DAMAGE_SHIPS, vpos);
     } else if (entity_has(world, v, C_MINE)) {
       mine_explode(world, v);
+    } else if (entity_has(world, v, C_FREIGHTER)) {
+      freighter_hit(world, v, MINE_DAMAGE_SHIPS, vpos, true);
     } else if (entity_has(world, v, C_PLAYER)) {
       Player *p = &world->players[v];
       if (p->damage_timer <= 0.0f) {

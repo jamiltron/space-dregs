@@ -62,6 +62,8 @@ static const EventResponse RESPONSES[EVENT_TYPE_COUNT] = {
   [EV_DISTRESS_CLEARED]  = { SFX_COIN, true, 0.0f },
   [EV_FUEL_LOW]          = { SFX_FUEL_LOW, true, 0.0f },
   [EV_HULL_LOW]          = { SFX_HULL_LOW, true, 0.0f },
+  [EV_FREIGHTER_KILLED]  = { SFX_EXPLOSION, true, 6.0f },
+  [EV_DISTRESS_ABANDONED] = { SFX_SHOOT, false, 0.0f },
 };
 
 void events_emit(EventType type, Vec2f pos) {

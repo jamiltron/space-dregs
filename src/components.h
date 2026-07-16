@@ -35,6 +35,7 @@ enum {
   C_MINE      = 1 << 15, /**< Dropped charge: timed fuse, area blast. */
   C_MISSILE   = 1 << 16, /**< Seeking warhead; guided by system_missiles. */
   C_DISTRESS  = 1 << 17, /**< Distress-scene member (freighter or raider). */
+  C_FREIGHTER = 1 << 18, /**< Neutral hauler: real hull, bleeds cargo when broken. */
 };
 
 /** Station upgrades, bought with credits; levels live on the Player. */
@@ -135,6 +136,12 @@ typedef struct Mine {
 } Mine;
 
 /** Minable rock. */
+/** Neutral hauler. */
+typedef struct Freighter {
+  float hp;             /**< Small-int damage scale. */
+  float player_damage;  /**< Player's share; drives blame on destruction. */
+} Freighter;
+
 typedef struct Asteroid {
   int generation;  /**< 0 = full size; splits until the last generation. */
   int hp;          /**< Hits left, scales with radius. */

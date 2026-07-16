@@ -8,6 +8,7 @@
 #include "draw.h"
 #include "asteroid.h"
 #include "bullet.h"
+#include "distress.h"
 #include "events.h"
 #include "mine.h"
 #include "missile.h"
@@ -223,6 +224,15 @@ void system_pirate(World *world, float dt) {
     }
   }
 
+  // The live distress hauler, if any: tagged raiders converge on it
+  Entity hauler = MAX_ENTITIES;
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (entity_has(world, e, C_FREIGHTER | C_DISTRESS | C_TRANSFORM)) {
+      hauler = e;
+      break;
+    }
+  }
+
   for (Entity e = 0; e < world->high_water; e++) {
     if (!entity_has(world, e, C_PIRATE | C_TRANSFORM | C_VELOCITY)) continue;
     if (entity_has(world, e, C_FROZEN)) continue;
@@ -269,9 +279,26 @@ void system_pirate(World *world, float dt) {
       }
     }
 
+    // Tagged raiders converge on the hauler when one lives; an ambush
+    // pack (no hauler) targets the player regardless of sense range
+    bool hunting = false;
+    Vec2f to_hauler = { 0 };
+    float hauler_dist = 0.0f;
+    if (!fleeing_station && !engaged && entity_has(world, e, C_DISTRESS)) {
+      if (hauler != MAX_ENTITIES && !st->kamikaze) {
+        to_hauler = vec2f_sub(world->transforms[hauler].position,
+                              tf->position);
+        hauler_dist = vec2f_length(to_hauler);
+        hunting = hauler_dist > 0.0f;
+      } else if (hauler == MAX_ENTITIES && player != MAX_ENTITIES &&
+                 !player_in_sanctuary) {
+        engaged = true;
+      }
+    }
+
     Entity prize = MAX_ENTITIES;
     Vec2f to_prize = { 0 };
-    if (!fleeing_station && !engaged && !st->kamikaze) {
+    if (!fleeing_station && !engaged && !hunting && !st->kamikaze) {
       float best = PIRATE_SCRAP_RADIUS;
       for (Entity s = 0; s < world->high_water; s++) {
         if (!entity_has(world, s, C_SCRAP | C_TRANSFORM)) continue;
@@ -298,6 +325,8 @@ void system_pirate(World *world, float dt) {
       target_angle = vec2f_heading(vec2f_sub(tf->position, flee_from));
     } else if (engaged) {
       target_angle = vec2f_heading(to_player);
+    } else if (hunting) {
+      target_angle = vec2f_heading(to_hauler);
     } else if (prize != MAX_ENTITIES) {
       target_angle = vec2f_heading(to_prize);
     } else if (st->kamikaze) {
@@ -323,9 +352,15 @@ void system_pirate(World *world, float dt) {
 
     //     Kamikazes only move on an engaged player, and never stand off ---
     bool facing = fabsf(heading_error) < 60.0f;
-    bool wants_thrust = st->kamikaze
-                            ? engaged || fleeing_station
-                            : !engaged || dist > PIRATE_KEEP_DIST;
+    bool wants_thrust;
+    if (st->kamikaze) {
+      wants_thrust = engaged || fleeing_station;
+    } else if (hunting) {
+      // Wide standoff: coasting past it must not plow into the hauler
+      wants_thrust = hauler_dist > PIRATE_KEEP_DIST * 1.5f;
+    } else {
+      wants_thrust = !engaged || dist > PIRATE_KEEP_DIST;
+    }
     if (facing && wants_thrust) {
       vel->value = vec2f_add(vel->value, vec2f_mul(dir, st->thrust * dt));
     }
@@ -630,7 +665,20 @@ void system_collision(World *world) {
         } else if (hostile && entity_has(world, other, C_MINE)) {
           mine_explode(world, other);
           entity_destroy(world, bullet);
+        } else if (entity_has(world, other, C_FREIGHTER)) {
+          // Anyone's fire chews a hauler; only player fire marks a kill
+          freighter_hit(world, other, punch, contact, !hostile);
+          entity_destroy(world, bullet);
         }
+        continue;
+      }
+
+      // Raiders swarm the hauler; no elastic shove between them, or
+      // the repeated bounces accelerate it out of the scene
+      bool a_frt = entity_has(world, a, C_FREIGHTER);
+      bool b_frt = entity_has(world, b, C_FREIGHTER);
+      if ((a_frt && entity_has(world, b, C_PIRATE)) ||
+          (b_frt && entity_has(world, a, C_PIRATE))) {
         continue;
       }
 
@@ -680,6 +728,10 @@ void system_collision(World *world) {
           int ram_damage = 0;
           if (entity_has(world, other, C_ASTEROID)) {
             ram_damage = 20 + (int)(world->asteroids[other].radius * 0.5f);
+          } else if (entity_has(world, other, C_FREIGHTER)) {
+            ram_damage = FREIGHTER_RAM_DAMAGE;
+            freighter_hit(world, other, FREIGHTER_RAM_HIT,
+                          world->transforms[ship].position, true);
           } else if (entity_has(world, other, C_PIRATE)) {
             const PirateStats *pst =
                 pirate_stats(world->pirates[other].archetype);

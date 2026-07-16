@@ -30,6 +30,8 @@ static LinePool distress_saved_pool = { .last = -1 };
 static LinePool distress_lost_pool = { .last = -1 };
 static LinePool distress_ambush_pool = { .last = -1 };
 static LinePool distress_cleared_pool = { .last = -1 };
+static LinePool freighter_killed_pool = { .last = -1 };
+static LinePool distress_abandoned_pool = { .last = -1 };
 
 /** Maps a dialogue.txt [section] tag to its pool; the fallback keeps
  *  that voice alive if the file is missing or the section is empty. */
@@ -59,6 +61,10 @@ static const SectionMap SECTIONS[] = {
     "NO FREIGHTER ON SCAN - IT'S BAIT" },
   { "[distress-cleared", &distress_cleared_pool,
     "DECOY CLEARED - SALVAGE BOUNTY WIRED" },
+  { "[freighter-killed", &freighter_killed_pool,
+    "THAT WAS A CIVILIAN HAULER - THE GUILD WON'T FORGET" },
+  { "[distress-abandoned", &distress_abandoned_pool,
+    "RESCUE OFF THE SCOPE - THE HAULER'S ON ITS OWN" },
 };
 static const int SECTION_COUNT = (int)(sizeof(SECTIONS) / sizeof(SECTIONS[0]));
 
@@ -237,6 +243,12 @@ void dialogue_on_event(EventType type, Vec2f pos) {
     break;
   case EV_DISTRESS_CLEARED:
     say(pick(&distress_cleared_pool), (SDL_Color){ 255, 180, 60, 255 });
+    break;
+  case EV_FREIGHTER_KILLED:
+    say(pick(&freighter_killed_pool), (SDL_Color){ 255, 90, 80, 255 });
+    break;
+  case EV_DISTRESS_ABANDONED:
+    say(pick(&distress_abandoned_pool), (SDL_Color){ 255, 180, 60, 255 });
     break;
   case EV_TUTORIAL_DONE: {
     char buf[DIALOGUE_MAX];

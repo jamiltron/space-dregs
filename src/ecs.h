@@ -34,6 +34,7 @@ typedef struct World {
   Frozen    frozens[MAX_ENTITIES];
   Signal    signals[MAX_ENTITIES];
   Mine      mines[MAX_ENTITIES];
+  Freighter freighters[MAX_ENTITIES];
 
   // Entity allocation
   Entity free_list[MAX_ENTITIES];

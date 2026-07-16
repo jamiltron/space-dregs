@@ -291,11 +291,13 @@ void hud_render(World *world, Entity player, const Quest *quest,
   }
 
   if (distress->state == DISTRESS_CALLED) {
-    SDL_snprintf(buf, sizeof(buf), "MAYDAY %d", (int)SDL_ceilf(distress->timer));
+    SDL_snprintf(buf, sizeof(buf), "MAYDAY - HAULER HULL %d",
+                 (int)SDL_ceilf(distress->hull));
     font_draw_text(renderer, buf, HUD_MARGIN, y, 12.0f, COLOR_DISTRESS);
   } else if (distress->state == DISTRESS_FIGHT) {
-    font_draw_text(renderer, "MAYDAY - CLEAR THE RAIDERS", HUD_MARGIN, y,
-                   12.0f, COLOR_DISTRESS);
+    SDL_snprintf(buf, sizeof(buf), "MAYDAY - RAIDERS LEFT %d",
+                 distress->raiders);
+    font_draw_text(renderer, buf, HUD_MARGIN, y, 12.0f, COLOR_DISTRESS);
   }
 
   compass_render(world, player, quest, distress, renderer);
