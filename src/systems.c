@@ -155,7 +155,7 @@ void system_player(World *world, float dt) {
         !station_docked(world, e)) {
       Vec2f nose = vec2f_add(tf->position,
                              vec2f_mul(dir, player->muzzle_offset));
-      missile_spawn(world, nose, tf->angle);
+      missile_spawn(world, nose, tf->angle, false);
       player->missiles--;
       events_emit(EV_MISSILE_FIRED, nose);
     }
@@ -299,6 +299,19 @@ void system_pirate(World *world, float dt) {
       bullet_spawn(world, muzzle, bullet_vel, tf->angle, true);
       events_emit(EV_PIRATE_FIRED, muzzle);
     }
+
+    if (st->missile_interval > 0.0f) {
+      pirate->missile_cooldown -= dt;
+      // The seeker corrects the aim; only a rough nose-on is needed
+      if (engaged && fabsf(heading_error) < 90.0f &&
+          pirate->missile_cooldown <= 0.0f) {
+        pirate->missile_cooldown = st->missile_interval;
+
+        Vec2f nose = vec2f_add(tf->position, vec2f_mul(dir, st->size + 6.0f));
+        missile_spawn(world, nose, tf->angle, true);
+        events_emit(EV_MISSILE_FIRED, nose);
+      }
+    }
   }
 }
 
@@ -353,28 +366,56 @@ void system_mines(World *world, float dt) {
 }
 
 /** Constant speed along the heading; the heading turns, rate-limited,
- *  toward the nearest live pirate in seeker range. No target: straight. */
+ *  toward the nearest target in seeker range. Player missiles seek
+ *  pirates; hostile ones seek the player, but a closer mine decoys
+ *  them (same trick the drones fall for). No target: straight. */
 void system_missiles(World *world, float dt) {
   for (Entity e = 0; e < world->high_water; e++) {
     if (!entity_has(world, e, C_MISSILE | C_TRANSFORM | C_VELOCITY)) continue;
     if (entity_has(world, e, C_FROZEN)) continue;
 
     Transform *tf = &world->transforms[e];
+    bool hostile = world->bullets[e].hostile;
 
-    // Re-acquire every step: the nearest pirate wins the seeker
+    // Re-acquire every step: the nearest valid target wins the seeker
     float best = MISSILE_SEEK_RADIUS;
     Vec2f to_target = { 0 };
     bool locked = false;
-    for (Entity p = 0; p < world->high_water; p++) {
-      if (!entity_has(world, p, C_PIRATE | C_TRANSFORM)) continue;
-      if (entity_has(world, p, C_FROZEN)) continue;
+    if (hostile) {
+      Entity player = find_player(world);
+      if (player != MAX_ENTITIES) {
+        Vec2f d = vec2f_sub(world->transforms[player].position, tf->position);
+        float pd = vec2f_length(d);
+        if (pd < best) {
+          best = pd;
+          to_target = d;
+          locked = true;
+        }
+      }
+      for (Entity m = 0; m < world->high_water; m++) {
+        if (!entity_has(world, m, C_MINE | C_TRANSFORM)) continue;
+        if (entity_has(world, m, C_FROZEN)) continue;
 
-      Vec2f d = vec2f_sub(world->transforms[p].position, tf->position);
-      float pd = vec2f_length(d);
-      if (pd < best) {
-        best = pd;
-        to_target = d;
-        locked = true;
+        Vec2f d = vec2f_sub(world->transforms[m].position, tf->position);
+        float md = vec2f_length(d);
+        if (md < best) {
+          best = md;
+          to_target = d;
+          locked = true;
+        }
+      }
+    } else {
+      for (Entity p = 0; p < world->high_water; p++) {
+        if (!entity_has(world, p, C_PIRATE | C_TRANSFORM)) continue;
+        if (entity_has(world, p, C_FROZEN)) continue;
+
+        Vec2f d = vec2f_sub(world->transforms[p].position, tf->position);
+        float pd = vec2f_length(d);
+        if (pd < best) {
+          best = pd;
+          to_target = d;
+          locked = true;
+        }
       }
     }
 
@@ -497,12 +538,19 @@ void system_collision(World *world) {
         } else if (hostile && entity_has(world, other, C_PLAYER)) {
           Player *player = &world->players[other];
           if (player->damage_timer <= 0.0f) {
-            player_take_damage(player, PIRATE_BULLET_DAMAGE);
+            // Missiles hit on the hull scale, harder than a bullet
+            player_take_damage(player,
+                               entity_has(world, bullet, C_MISSILE)
+                                   ? MISSILE_HULL_DAMAGE
+                                   : PIRATE_BULLET_DAMAGE);
             player->damage_timer = SHIP_DAMAGE_COOLDOWN;
             world->wireframes[other].flash = 0.1f;
             events_emit(EV_PLAYER_HURT, contact);
             if (player->hp <= 0) ship_explode(world, other);
           }
+          entity_destroy(world, bullet);
+        } else if (hostile && entity_has(world, other, C_MINE)) {
+          mine_explode(world, other);  // decoyed seeker takes the bait
           entity_destroy(world, bullet);
         }
         continue;

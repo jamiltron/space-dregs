@@ -112,7 +112,7 @@ static void chunk_populate(Chunks *ck, World *world, int cx, int cy,
         if (has_outpost &&
             vec2f_length(vec2f_sub(pos, outpost)) < STATION_SAFE_ZONE) continue;
 
-        // One roll, partitioned: drone slice, then brute slice, else dart
+        // One roll, partitioned: drone, brute, battleship slices, else dart
         PirateArchetype type = PIRATE_DART;
         float roll = SDL_randf_r(&rng);
         if (home_dist > PIRATE_DRONE_MIN_DIST && roll < PIRATE_DRONE_CHANCE) {
@@ -120,6 +120,10 @@ static void chunk_populate(Chunks *ck, World *world, int cx, int cy,
         } else if (home_dist > PIRATE_BRUTE_MIN_DIST &&
                    roll < PIRATE_DRONE_CHANCE + PIRATE_BRUTE_CHANCE) {
           type = PIRATE_BRUTE;
+        } else if (home_dist > PIRATE_BATTLESHIP_MIN_DIST &&
+                   roll < PIRATE_DRONE_CHANCE + PIRATE_BRUTE_CHANCE +
+                          PIRATE_BATTLESHIP_CHANCE) {
+          type = PIRATE_BATTLESHIP;
         }
         pirate_spawn(world, pos, type);
       }

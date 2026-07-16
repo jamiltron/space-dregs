@@ -30,12 +30,16 @@
 #define PIRATE_BRUTE_CHANCE 0.25f      /**< Per pirate, in the deep field. */
 #define PIRATE_DRONE_MIN_DIST 1200.0f  /**< Drones only spawn past this. */
 #define PIRATE_DRONE_CHANCE 0.20f      /**< Per pirate. */
+#define PIRATE_BATTLESHIP_MIN_DIST 3500.0f  /**< Battleships haunt the far deep. */
+#define PIRATE_BATTLESHIP_CHANCE 0.06f      /**< Per pirate; much rarer than the rest. */
 
 /** Pirate archetypes; per-type tuning lives in the table in pirate.c. */
 typedef enum PirateArchetype {
-  PIRATE_DART,   /**< Baseline chevron: quick and fragile. */
-  PIRATE_BRUTE,  /**< Heavy gunship: bigger, slower, much tougher. */
-  PIRATE_DRONE,  /**< Kamikaze mine: sits dormant, then rams and explodes. */
+  PIRATE_DART,        /**< Baseline chevron: quick and fragile. */
+  PIRATE_BRUTE,       /**< Heavy gunship: bigger, slower, much tougher. */
+  PIRATE_DRONE,       /**< Kamikaze mine: sits dormant, then rams and explodes. */
+  PIRATE_BATTLESHIP,  /**< Long capital hull: heavy hp, fast in a line,
+                           slow to turn, lobs seeking missiles. */
   PIRATE_ARCHETYPE_COUNT
 } PirateArchetype;
 
@@ -46,6 +50,7 @@ typedef struct PirateStats {
   float thrust;
   float max_speed;
   float fire_interval;  /**< Seconds between shots. */
+  float missile_interval; /**< Seconds between seeking missiles; 0 = no launcher. */
   float sense_radius;   /**< Notices the player inside this. */
   float damping;        /**< Velocity decay per second. */
   int   hp;
