@@ -36,8 +36,13 @@ float faction_price_scale(const World *world);
 /** False while the guild refuses to deal contracts (standing <= -20). */
 bool faction_board_open(const World *world);
 
+/** Scale on wild pirates' sense radius toward the player: 0.5 at
+ *  clan standing >= 20, 0 at >= 40. Provoked pirates and tagged
+ *  raiders/hunters ignore this. */
+float faction_sense_scale(const World *world);
+
 /** A player pirate kill: clan standing drops; heat rises unless the
- *  victim was a hunter (they came to you). */
+ *  victim was a hunter. */
 void faction_on_pirate_kill(World *world, int archetype, bool was_hunter);
 
 #endif

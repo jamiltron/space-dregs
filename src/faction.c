@@ -43,6 +43,13 @@ bool faction_board_open(const World *world) {
   return world->factions.standing[FACTION_GUILD] > -FACTION_TIER;
 }
 
+float faction_sense_scale(const World *world) {
+  int c = world->factions.standing[FACTION_CLANS];
+  if (c >= FACTION_TIER * 2) return 0.0f;
+  if (c >= FACTION_TIER) return 0.5f;
+  return 1.0f;
+}
+
 void faction_on_pirate_kill(World *world, int archetype, bool was_hunter) {
   faction_add(world, FACTION_CLANS, -FACTION_KILL_STANDING);
   if (was_hunter) return;

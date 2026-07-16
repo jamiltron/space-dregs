@@ -119,6 +119,7 @@ typedef struct Pirate {
   int loot;            /**< Scrap collected; drops on death. */
   float leak_timer;    /**< Counts up while loot is held; leaks 1 per interval. */
   int archetype;       /**< PirateArchetype; indexes the stats table. */
+  bool provoked;       /**< Damaged by the player; clan-standing perks stop applying. */
 } Pirate;
 
 /** Bookkeeping for off-screen simulation freezing. */

@@ -10,6 +10,7 @@
 #include "bullet.h"
 #include "distress.h"
 #include "events.h"
+#include "faction.h"
 #include "mine.h"
 #include "missile.h"
 #include "particles.h"
@@ -269,7 +270,13 @@ void system_pirate(World *world, float dt) {
     if (player != MAX_ENTITIES && !player_in_sanctuary) {
       to_player = vec2f_sub(world->transforms[player].position, tf->position);
       dist = vec2f_length(to_player);
-      engaged = dist < st->sense_radius;
+
+      // Provoked or tagged pirates ignore the clan-standing perk
+      float sense = st->sense_radius;
+      if (!pirate->provoked && !entity_has(world, e, C_DISTRESS)) {
+        sense *= faction_sense_scale(world);
+      }
+      engaged = dist < sense;
     }
 
     if (st->kamikaze) {

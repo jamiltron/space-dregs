@@ -215,6 +215,7 @@ void pirate_hit(World *world, Entity e, int damage, Vec2f impact,
   Vec2f velocity = world->velocities[e].value;
   const PirateStats *st = pirate_stats(world->pirates[e].archetype);
 
+  if (by_player) world->pirates[e].provoked = true;
   world->pirates[e].hp -= damage;
   if (world->pirates[e].hp > 0) {
     world->wireframes[e].flash = 0.07f;
