@@ -4,6 +4,7 @@
 #include "faction.h"
 #include "events.h"
 #include "pirate.h"
+#include "station.h"
 
 /** Dialogue beats when a standing crosses a tier line. */
 static void threshold_events(FactionId id, int before, int after) {
@@ -48,6 +49,70 @@ float faction_sense_scale(const World *world) {
   if (c >= FACTION_TIER * 2) return 0.0f;
   if (c >= FACTION_TIER) return 0.5f;
   return 1.0f;
+}
+
+static void spawn_hunters(World *world, Vec2f ppos) {
+  Vec2f dir = vec2f_dir(world_randf(world) * TWO_PI);
+  float dist = FACTION_HUNTER_DIST_MIN +
+               world_randf(world) * FACTION_HUNTER_DIST_SPREAD;
+  Vec2f center = vec2f_add(ppos, vec2f_mul(dir, dist));
+
+  PirateArchetype pack[4] = { PIRATE_DART, PIRATE_DART };
+  int count = 2;
+  if (world->factions.heat >= FACTION_HEAT_TIER2) pack[count++] = PIRATE_BRUTE;
+  if (world->factions.heat >= FACTION_HEAT_TIER3) {
+    pack[count++] = PIRATE_BATTLESHIP;
+  }
+
+  for (int i = 0; i < count; i++) {
+    float a = world_randf(world) * TWO_PI;
+    Entity p = pirate_spawn(
+        world, vec2f_add(center, vec2f_mul(vec2f_dir(a), 90.0f)), pack[i]);
+    world->masks[p] |= C_HUNTER;
+    world->pirates[p].provoked = true;
+  }
+
+  events_emit(EV_HUNTERS_INBOUND, center);
+}
+
+void faction_update(World *world, Entity player, float dt) {
+  Factions *f = &world->factions;
+
+  f->heat -= FACTION_HEAT_DECAY * dt;
+  if (f->heat < 0.0f) f->heat = 0.0f;
+
+  if (!entity_has(world, player, C_PLAYER | C_TRANSFORM)) return;
+  Vec2f ppos = world->transforms[player].position;
+
+  bool live_pack = false;
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_HUNTER | C_PIRATE | C_TRANSFORM)) continue;
+
+    float d = vec2f_length(vec2f_sub(world->transforms[e].position, ppos));
+    if (d > FACTION_HUNTER_LEASH) {
+      world->masks[e] &= ~C_HUNTER;
+    } else {
+      live_pack = true;
+    }
+  }
+
+  bool eligible = !live_pack && f->heat >= FACTION_HEAT_HUNT &&
+                  !station_docked(world, player);
+  if (!eligible) {
+    f->hunter_timer = -1.0f;  // re-rolled on the next eligible frame
+    return;
+  }
+  if (f->hunter_timer < 0.0f) {
+    f->hunter_timer = FACTION_HUNTER_DELAY_MIN +
+                      world_randf(world) * FACTION_HUNTER_DELAY_SPREAD;
+    return;
+  }
+
+  f->hunter_timer -= dt;
+  if (f->hunter_timer <= 0.0f) {
+    spawn_hunters(world, ppos);
+    f->hunter_timer = -1.0f;
+  }
 }
 
 void faction_on_pirate_kill(World *world, int archetype, bool was_hunter) {

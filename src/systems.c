@@ -322,6 +322,11 @@ void system_pirate(World *world, float dt) {
       }
     }
 
+    if (!fleeing_station && !engaged && entity_has(world, e, C_HUNTER) &&
+        player != MAX_ENTITIES && !player_in_sanctuary) {
+      engaged = true;
+    }
+
     Entity prize = MAX_ENTITIES;
     Vec2f to_prize = { 0 };
     if (!fleeing_station && !engaged && !hunting && !st->kamikaze) {

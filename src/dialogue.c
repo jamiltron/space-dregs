@@ -35,6 +35,7 @@ static LinePool distress_abandoned_pool = { .last = -1 };
 static LinePool guild_respected_pool = { .last = -1 };
 static LinePool guild_outcast_pool = { .last = -1 };
 static LinePool clans_respected_pool = { .last = -1 };
+static LinePool hunters_pool = { .last = -1 };
 
 /** Maps a dialogue.txt [section] tag to its pool; the fallback keeps
  *  that voice alive if the file is missing or the section is empty. */
@@ -74,6 +75,8 @@ static const SectionMap SECTIONS[] = {
     "GUILD NOTICE - NO CONTRACTS, AND YOU PAY OUTSIDER RATES" },
   { "[clans-respected", &clans_respected_pool,
     "CLAN CHANNELS CALL YOU FRIEND - THE PACKS WILL PASS YOU BY" },
+  { "[hunters-inbound", &hunters_pool,
+    "CLAN CHATTER SPIKES - HUNTERS ARE COMING FOR YOU" },
 };
 static const int SECTION_COUNT = (int)(sizeof(SECTIONS) / sizeof(SECTIONS[0]));
 
@@ -267,6 +270,9 @@ void dialogue_on_event(EventType type, Vec2f pos) {
     break;
   case EV_CLANS_RESPECTED:
     say(pick(&clans_respected_pool), (SDL_Color){ 255, 180, 60, 255 });
+    break;
+  case EV_HUNTERS_INBOUND:
+    say(pick(&hunters_pool), (SDL_Color){ 255, 90, 80, 255 });
     break;
   case EV_TUTORIAL_DONE: {
     char buf[DIALOGUE_MAX];

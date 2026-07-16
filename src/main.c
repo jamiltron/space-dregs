@@ -16,6 +16,7 @@
 #include "config.h"
 #include "dialogue.h"
 #include "events.h"
+#include "faction.h"
 #include "font.h"
 #include "fx.h"
 #include "hud.h"
@@ -122,6 +123,7 @@ static void simulate(float dt) {
   station_update(&app.world, app.player, dt);
   quest_update(&app.quest, &app.world, app.player, dt);
   distress_update(&app.distress, &app.world, app.player, dt);
+  faction_update(&app.world, app.player, dt);
 
   // The board closes itself when you drift off the station
   if (app.quest_board && !station_docked(&app.world, app.player)) {

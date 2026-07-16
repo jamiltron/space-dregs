@@ -226,7 +226,8 @@ void pirate_hit(World *world, Entity e, int damage, Vec2f impact,
   }
 
   if (by_player) {
-    faction_on_pirate_kill(world, world->pirates[e].archetype, false);
+    faction_on_pirate_kill(world, world->pirates[e].archetype,
+                           entity_has(world, e, C_HUNTER));
   }
 
   Vec2f position = world->transforms[e].position;

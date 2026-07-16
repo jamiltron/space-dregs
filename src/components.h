@@ -36,6 +36,7 @@ enum {
   C_MISSILE   = 1 << 16, /**< Seeking warhead; guided by system_missiles. */
   C_DISTRESS  = 1 << 17, /**< Distress-scene member (freighter or raider). */
   C_FREIGHTER = 1 << 18, /**< Neutral hauler: real hull, bleeds cargo when broken. */
+  C_HUNTER    = 1 << 19, /**< Clan hunter: targets the player from any range. */
 };
 
 /** Station upgrades, bought with credits; levels live on the Player. */

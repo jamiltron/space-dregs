@@ -28,6 +28,7 @@ typedef enum SfxId {
   SFX_MAYDAY,        /**< Two-tone distress siren. */
   SFX_FUEL_LOW,      /**< Soft single chip: fuel in the red. */
   SFX_HULL_LOW,      /**< Descending two-tone: hull in the red. */
+  SFX_WARHORN,       /**< Low two-note horn: hunters inbound. */
   SFX_COUNT
 } SfxId;
 

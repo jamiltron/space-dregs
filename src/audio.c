@@ -116,6 +116,9 @@ static void gen_all_clips(void) {
 
   const float hull_low[] = { 880.0f, 587.0f };
   gen_notes(SFX_HULL_LOW, hull_low, 2, 0.12f, 0.15f);
+
+  const float warhorn[] = { 196.0f, 147.0f };
+  gen_notes(SFX_WARHORN, warhorn, 2, 0.22f, 0.2f);
 }
 
 bool audio_init(void) {

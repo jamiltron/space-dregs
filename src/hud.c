@@ -295,6 +295,14 @@ void hud_render(World *world, Entity player, const Quest *quest,
   }
   y += HUD_LINE_GAP;
 
+  if (world->factions.heat > 0.0f) {
+    SDL_snprintf(buf, sizeof(buf), "%d", (int)SDL_ceilf(world->factions.heat));
+    stat_line(renderer, "HEAT", buf, y,
+              world->factions.heat >= FACTION_HEAT_HUNT ? COLOR_DANGER
+                                                        : COLOR_DISTRESS);
+    y += HUD_LINE_GAP;
+  }
+
   if (quest->complete_timer > 0.0f) {
     SDL_snprintf(buf, sizeof(buf), "QUEST COMPLETE");
     font_draw_text(renderer, buf, HUD_MARGIN, y, 12.0f, COLOR_QUEST);

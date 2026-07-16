@@ -58,6 +58,7 @@ typedef enum EventType {
   EV_GUILD_RESPECTED,     /**< Guild standing rose through +20. */
   EV_GUILD_OUTCAST,       /**< Guild standing fell through -20. */
   EV_CLANS_RESPECTED,     /**< Clan standing rose through +20. */
+  EV_HUNTERS_INBOUND,     /**< A clan hunter pack spawned and is converging. */
   EVENT_TYPE_COUNT
 } EventType;
 

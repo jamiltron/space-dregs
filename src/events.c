@@ -67,6 +67,7 @@ static const EventResponse RESPONSES[EVENT_TYPE_COUNT] = {
   [EV_GUILD_RESPECTED]   = { SFX_UPGRADE, true, 0.0f },
   [EV_GUILD_OUTCAST]     = { SFX_SHOOT_PIRATE, true, 0.0f },
   [EV_CLANS_RESPECTED]   = { SFX_UPGRADE, true, 0.0f },
+  [EV_HUNTERS_INBOUND]   = { SFX_WARHORN, true, 0.0f },
 };
 
 void events_emit(EventType type, Vec2f pos) {
