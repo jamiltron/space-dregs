@@ -5,6 +5,7 @@
 #include "app.h"
 #include "font.h"
 #include "input.h"
+#include "quest.h"
 
 #define DIALOGUE_MAX 96
 #define DIALOGUE_CPS 32.0f      // typewriter characters per second
@@ -24,8 +25,12 @@ static LinePool start_pool = { .last = -1 };
 
 static char current[DIALOGUE_MAX];
 static SDL_Color color;
+static bool hold;        // instruction/milestone line: chatter can't replace it
 static float revealed;   // characters shown so far
 static float linger;     // countdown after full reveal
+
+static char queued[DIALOGUE_MAX];  // follow-up line, spoken after current
+static SDL_Color queued_color;
 
 static void pool_add(LinePool *p, const char *s) {
   if (p->count >= POOL_MAX) return;
@@ -72,8 +77,26 @@ void dialogue_init(void) {
 static void say(const char *text, SDL_Color c) {
   SDL_strlcpy(current, text, sizeof(current));
   color = c;
+  hold = true;
+  queued[0] = '\0';  // a milestone supersedes any pending follow-up
   revealed = 0.0f;
   linger = DIALOGUE_LINGER;
+}
+
+/** Ambient pool lines: dropped rather than stomping an instruction. */
+static void chatter(const char *text, SDL_Color c) {
+  if ((current[0] && hold) || queued[0]) return;
+  SDL_strlcpy(current, text, sizeof(current));
+  color = c;
+  hold = false;
+  revealed = 0.0f;
+  linger = DIALOGUE_LINGER;
+}
+
+/** Queue a line to speak once the current one expires. */
+static void enqueue(const char *text, SDL_Color c) {
+  SDL_strlcpy(queued, text, sizeof(queued));
+  queued_color = c;
 }
 
 /** Pick from a pool without repeating the previous choice. */
@@ -99,6 +122,13 @@ void dialogue_run_start(int debt) {
   }
 
   say(buf, (SDL_Color){ 230, 150, 90, 255 });  // debt orange
+
+  // Opening lesson follows the debt line (quest_grant_tutorial pays it)
+  char tip[DIALOGUE_MAX];
+  SDL_snprintf(tip, sizeof(tip),
+               "PRESS Q AT THE DOCK - ANY CONTRACT PAYS %d CR EXTRA",
+               QUEST_TUTORIAL_REWARD);
+  enqueue(tip, (SDL_Color){ 230, 120, 255, 255 });
 }
 
 /** "PRESS <key> TO ..." with the action's live binding filled in, so
@@ -116,10 +146,10 @@ void dialogue_on_event(EventType type, Vec2f pos) {
   (void)pos;
   switch (type) {
   case EV_DOCKED:
-    say(pick(&attendant_pool), (SDL_Color){ 140, 225, 235, 255 });
+    chatter(pick(&attendant_pool), (SDL_Color){ 140, 225, 235, 255 });
     break;
   case EV_SIGNAL:
-    say(pick(&signal_pool), (SDL_Color){ 120, 230, 255, 255 });
+    chatter(pick(&signal_pool), (SDL_Color){ 120, 230, 255, 255 });
     break;
   case EV_SIGNAL_CONTRACT:
     say("INTERCEPTED POSTING - A MARK IS ON YOUR NAV",
@@ -141,6 +171,13 @@ void dialogue_on_event(EventType type, Vec2f pos) {
     say_key_tip("MISSILE POD FITTED - PRESS %s TO FIRE, IT SEEKS",
                 ACT_MISSILE, (SDL_Color){ 255, 200, 120, 255 });
     break;
+  case EV_TUTORIAL_DONE: {
+    char buf[DIALOGUE_MAX];
+    SDL_snprintf(buf, sizeof(buf), "SIGNING BONUS WIRED - %d CR - GOOD HUNTING",
+                 QUEST_TUTORIAL_REWARD);
+    say(buf, (SDL_Color){ 255, 200, 80, 255 });
+    break;
+  }
   default:
     break;
   }
@@ -155,7 +192,17 @@ void dialogue_update(float dt) {
     if (revealed > len) revealed = len;
   } else {
     linger -= dt;
-    if (linger <= 0.0f) current[0] = '\0';
+    if (linger <= 0.0f) {
+      current[0] = '\0';
+      if (queued[0]) {
+        SDL_strlcpy(current, queued, sizeof(current));
+        color = queued_color;
+        hold = true;
+        queued[0] = '\0';
+        revealed = 0.0f;
+        linger = DIALOGUE_LINGER;
+      }
+    }
   }
 }
 

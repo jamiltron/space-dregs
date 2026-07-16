@@ -43,6 +43,7 @@ typedef enum EventType {
   EV_REPAIR_TICK,         /**< One credit of hull bought. */
   EV_MINE_RACK_BOUGHT,    /**< Dialogue announces the drop key. */
   EV_MISSILE_POD_BOUGHT,  /**< Dialogue announces the launch key. */
+  EV_TUTORIAL_DONE,       /**< First contract taken; starter bonus paid. */
   EVENT_TYPE_COUNT
 } EventType;
 

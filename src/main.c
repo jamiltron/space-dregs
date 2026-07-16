@@ -60,6 +60,7 @@ static void game_reset(Uint64 seed) {
   chunks_init(&app.chunks, seed, spawn);
   chunks_update(&app.chunks, &app.world, spawn);
   quest_reset(&app.quest);
+  quest_grant_tutorial(&app.quest, spawn);  // every fresh run opens schooled
   app.quest_board = false;
 
   app.camera = spawn;

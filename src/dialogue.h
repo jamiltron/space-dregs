@@ -6,7 +6,7 @@
  *  screen. Purely presentation — it reacts to game events (docking,
  *  signals, milestones) and picks lines with presentation randomness,
  *  so it never affects simulation determinism. Lines use only the
- *  glyphs the segment font has (A-Z 0-9 dash slash).
+ *  glyphs the segment font has (A-Z 0-9 dash slash plus).
  */
 
 #ifndef _SD_DIALOGUE_H

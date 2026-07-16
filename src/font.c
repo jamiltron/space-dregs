@@ -105,6 +105,7 @@ static Uint32 glyph_mask(char c) {
   case 'Y': return H | J | L;
   case 'Z': return A1 | A2 | J | K | D1 | D2;
   case '-': return G1 | G2;
+  case '+': return G1 | G2 | I | L;
   case '/': return J | K;  // TR to center to BL
   case '.': return PDOT;
   case ',': return CTAIL;

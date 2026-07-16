@@ -23,7 +23,10 @@ typedef enum QuestType {
   QUEST_FETCH,    /**< Recover a beacon from deep space, return to any station. */
   QUEST_BOUNTY,   /**< Destroy a marked, tougher pirate. */
   QUEST_DELIVER,  /**< Haul a package to a destination station. */
+  QUEST_TUTORIAL, /**< Opening lesson: dock and accept any contract. */
 } QuestType;
+
+#define QUEST_TUTORIAL_REWARD 10  /**< Starter bonus for the first contract. */
 
 /** Active contract plus the docked station's current offers. */
 typedef struct Quest {
@@ -50,6 +53,10 @@ bool quest_try_accept(Quest *q, World *world, Entity player, int index);
 
 /** A signal beacon assigns a bounty directly (no-op with a quest active). */
 void quest_grant_bounty(Quest *q, World *world, Vec2f from);
+
+/** Start the run-opening tutorial: take a contract at home. Completes
+ *  (and pays QUEST_TUTORIAL_REWARD) inside quest_try_accept. */
+void quest_grant_tutorial(Quest *q, Vec2f home);
 
 /** Drop the active contract; the objective is unmarked or removed. */
 void quest_abandon(Quest *q, World *world);

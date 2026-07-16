@@ -100,7 +100,7 @@ static void quest_board_render(const Quest *quest, SDL_Renderer *renderer) {
   font_draw_text(renderer, "QUEST BOARD", x, y, HUD_TEXT_SIZE, COLOR_QUEST);
   y += HUD_LINE_GAP * 1.3f;
 
-  if (quest->type != QUEST_NONE) {
+  if (quest->type != QUEST_NONE && quest->type != QUEST_TUTORIAL) {
     SDL_snprintf(buf, sizeof(buf), "%s +%d CR",
                  quest_status_label(quest), quest->reward);
     font_draw_text(renderer, buf, x, y, 12.0f, COLOR_QUEST);
@@ -117,6 +117,12 @@ static void quest_board_render(const Quest *quest, SDL_Renderer *renderer) {
                    quest_offer_label(quest->offers[i]),
                    quest->offer_rewards[i]);
       font_draw_text(renderer, buf, x, y, 12.0f, COLOR_QUEST);
+      y += HUD_LINE_GAP * 0.9f;
+    }
+    if (quest->type == QUEST_TUTORIAL) {
+      SDL_snprintf(buf, sizeof(buf), "ANY CONTRACT PAYS %d CR EXTRA",
+                   QUEST_TUTORIAL_REWARD);
+      font_draw_text(renderer, buf, x, y, 12.0f, COLOR_GOLD);
       y += HUD_LINE_GAP * 0.9f;
     }
   }

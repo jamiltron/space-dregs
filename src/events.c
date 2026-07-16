@@ -52,6 +52,7 @@ static const EventResponse RESPONSES[EVENT_TYPE_COUNT] = {
   [EV_REPAIR_TICK]       = { SFX_REPAIR, true, 0.0f },
   [EV_MINE_RACK_BOUGHT]  = { SFX_UPGRADE, true, 0.0f },
   [EV_MISSILE_POD_BOUGHT] = { SFX_UPGRADE, true, 0.0f },
+  [EV_TUTORIAL_DONE]     = { SFX_COIN, true, 0.0f },
 };
 
 void events_emit(EventType type, Vec2f pos) {

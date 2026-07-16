@@ -85,9 +85,14 @@ static void roll_offers(Quest *q, World *world) {
 }
 
 bool quest_try_accept(Quest *q, World *world, Entity player, int index) {
-  if (q->type != QUEST_NONE) return false;
+  if (q->type != QUEST_NONE && q->type != QUEST_TUTORIAL) return false;
   if (index < 0 || index >= q->offer_count) return false;
   if (!station_docked(world, player)) return false;
+
+  if (q->type == QUEST_TUTORIAL) {
+    world->players[player].money += q->reward;  // starter bonus
+    events_emit(EV_TUTORIAL_DONE, world->transforms[player].position);
+  }
 
   Vec2f base = world->transforms[player].position;
   Vec2f dir = vec2f_dir(world_randf(world) * TWO_PI);
@@ -133,8 +138,17 @@ void quest_grant_bounty(Quest *q, World *world, Vec2f from) {
   spawn_target(q, world);
 }
 
+void quest_grant_tutorial(Quest *q, Vec2f home) {
+  q->type = QUEST_TUTORIAL;
+  q->reward = QUEST_TUTORIAL_REWARD;
+  q->target_pos = home;
+  q->carrying = false;
+  q->offer_count = 0;
+}
+
 void quest_abandon(Quest *q, World *world) {
-  if (q->type == QUEST_NONE) return;
+  // The tutorial can't be dropped; it clears itself on the first accept
+  if (q->type == QUEST_NONE || q->type == QUEST_TUTORIAL) return;
 
   Entity target = find_target(world);
   if (target != MAX_ENTITIES) {
@@ -177,7 +191,8 @@ void quest_update(Quest *q, World *world, Entity player, float dt) {
   if (q->complete_timer > 0.0f) q->complete_timer -= dt;
   if (!entity_has(world, player, C_PLAYER | C_TRANSFORM)) return;
 
-  if (q->type == QUEST_NONE) {
+  // The tutorial wants a contract taken, so the board still deals
+  if (q->type == QUEST_NONE || q->type == QUEST_TUTORIAL) {
     if (station_docked(world, player)) {
       if (q->offer_count == 0) roll_offers(q, world);
     } else {
@@ -249,6 +264,7 @@ const char *quest_status_label(const Quest *q) {
   case QUEST_FETCH:   return q->carrying ? "RETURN TO STATION" : "FIND BEACON";
   case QUEST_BOUNTY:  return "HUNT THE MARK";
   case QUEST_DELIVER: return "DELIVER CARGO";
+  case QUEST_TUTORIAL: return "DOCK AND TAKE A CONTRACT";
   default:            return "";
   }
 }
