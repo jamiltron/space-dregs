@@ -4,6 +4,7 @@
 #include <math.h>
 #include <SDL3/SDL.h>
 #include "systems.h"
+#include "app.h"
 #include "draw.h"
 #include "asteroid.h"
 #include "bullet.h"
@@ -52,16 +53,23 @@ void system_freeze(World *world, Vec2f camera, float now) {
       if (entity_has(world, e, C_VELOCITY)) {
         float elapsed = now - world->frozens[e].since;
         Velocity *vel = &world->velocities[e];
+        Vec2f target = tf->position;
         if (vel->damping > 0.0f) {
           float decay = expf(-vel->damping * elapsed);
-          tf->position = vec2f_add(
-              tf->position,
-              vec2f_mul(vel->value, (1.0f - decay) / vel->damping));
+          target = vec2f_add(
+              target, vec2f_mul(vel->value, (1.0f - decay) / vel->damping));
           vel->value = vec2f_mul(vel->value, decay);
         } else {
-          tf->position = vec2f_add(tf->position,
-                                   vec2f_mul(vel->value, elapsed));
+          target = vec2f_add(target, vec2f_mul(vel->value, elapsed));
         }
+        // Waking happens off-screen; a catch-up jump that lands in the
+        // view reads as a spawn. Hold position and drift in live instead.
+        bool in_view =
+            fabsf(target.x - camera.x) <
+                WINDOW_WIDTH / 2.0f + FREEZE_WAKE_MARGIN &&
+            fabsf(target.y - camera.y) <
+                WINDOW_HEIGHT / 2.0f + FREEZE_WAKE_MARGIN;
+        if (!in_view) tf->position = target;
         tf->angle += vel->spin * elapsed;
       }
     }

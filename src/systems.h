@@ -13,6 +13,7 @@
 
 /** Half-extent of the box around the camera inside which entities simulate. */
 #define FREEZE_RADIUS 1100.0f
+#define FREEZE_WAKE_MARGIN 80.0f  /**< Wake catch-up may not land within this of the view. */
 
 /** Freeze entities far from the camera; on wake, dead-reckon the missed time.
  *  @param now Game time in seconds (App.time), not wall clock. */
