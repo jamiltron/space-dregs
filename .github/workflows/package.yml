@@ -109,3 +109,21 @@ jobs:
         with:
           files: artifacts/*.zip
           generate_release_notes: true
+
+      # Butler diffs against the previous build, so pushes are incremental;
+      # channel names carry the platform flags on itch (html5/mac/linux/windows)
+      - name: Install butler
+        run: |
+          curl -L -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          unzip butler.zip butler
+          chmod +x butler
+          ./butler -V
+      - name: Push to itch.io
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          ./butler push artifacts/spacedregs-web.zip     jamiltron/space-dregs:html5   --userversion "$V"
+          ./butler push artifacts/spacedregs-macos.zip   jamiltron/space-dregs:mac     --userversion "$V"
+          ./butler push artifacts/spacedregs-linux.zip   jamiltron/space-dregs:linux   --userversion "$V"
+          ./butler push artifacts/spacedregs-windows.zip jamiltron/space-dregs:windows --userversion "$V"
