@@ -22,6 +22,45 @@ typedef struct LinePool {
 static LinePool attendant_pool = { .last = -1 };
 static LinePool signal_pool = { .last = -1 };
 static LinePool start_pool = { .last = -1 };
+static LinePool tutorial_tip_pool = { .last = -1 };
+static LinePool tutorial_done_pool = { .last = -1 };
+static LinePool distress_call_pool = { .last = -1 };
+static LinePool distress_arrived_pool = { .last = -1 };
+static LinePool distress_saved_pool = { .last = -1 };
+static LinePool distress_lost_pool = { .last = -1 };
+static LinePool distress_ambush_pool = { .last = -1 };
+static LinePool distress_cleared_pool = { .last = -1 };
+
+/** Maps a dialogue.txt [section] tag to its pool; the fallback keeps
+ *  that voice alive if the file is missing or the section is empty. */
+typedef struct SectionMap {
+  const char *tag;
+  LinePool *pool;
+  const char *fallback;
+} SectionMap;
+
+static const SectionMap SECTIONS[] = {
+  { "[attendant", &attendant_pool, "WELCOME BACK DREG" },
+  { "[signal", &signal_pool, "AUTOMATED BEACON - NO REPLY" },
+  { "[start", &start_pool, "{DEBT} IN THE HOLE - GET MINING" },
+  { "[tutorial-tip", &tutorial_tip_pool,
+    "PRESS Q AT THE DOCK - ANY CONTRACT PAYS {BONUS} CR EXTRA" },
+  { "[tutorial-done", &tutorial_done_pool,
+    "SIGNING BONUS WIRED - {BONUS} CR - GOOD HUNTING" },
+  { "[distress-call", &distress_call_pool,
+    "MAYDAY - FREIGHTER UNDER ATTACK - AMBER MARKER ON NAV" },
+  { "[distress-arrived", &distress_arrived_pool,
+    "GET THEM OFF ME DREG - HOLD THEM OFF" },
+  { "[distress-saved", &distress_saved_pool,
+    "HAUL INTACT - SALVAGE JETTISONED, CREDITS WIRED" },
+  { "[distress-lost", &distress_lost_pool,
+    "SIGNAL LOST - ONLY DUST ON THE SCAN" },
+  { "[distress-ambush", &distress_ambush_pool,
+    "NO FREIGHTER ON SCAN - IT'S BAIT" },
+  { "[distress-cleared", &distress_cleared_pool,
+    "DECOY CLEARED - SALVAGE BOUNTY WIRED" },
+};
+static const int SECTION_COUNT = (int)(sizeof(SECTIONS) / sizeof(SECTIONS[0]));
 
 static char current[DIALOGUE_MAX];
 static SDL_Color color;
@@ -54,10 +93,14 @@ void dialogue_init(void) {
       if (n > 0 && line[n - 1] == '\r') line[n - 1] = '\0';
 
       if (line[0] == '[') {
-        if (SDL_strncmp(line, "[attendant", 10) == 0) section = &attendant_pool;
-        else if (SDL_strncmp(line, "[signal", 7) == 0) section = &signal_pool;
-        else if (SDL_strncmp(line, "[start", 6) == 0) section = &start_pool;
-        else section = NULL;
+        section = NULL;
+        for (int i = 0; i < SECTION_COUNT; i++) {
+          if (SDL_strncmp(line, SECTIONS[i].tag,
+                          SDL_strlen(SECTIONS[i].tag)) == 0) {
+            section = SECTIONS[i].pool;
+            break;
+          }
+        }
       } else if (line[0] != '#' && line[0] != '\0' && section) {
         pool_add(section, line);
       }
@@ -69,9 +112,11 @@ void dialogue_init(void) {
   }
 
   // The game keeps talking even if the file is lost
-  if (attendant_pool.count == 0) pool_add(&attendant_pool, "WELCOME BACK DREG");
-  if (signal_pool.count == 0) pool_add(&signal_pool, "AUTOMATED BEACON - NO REPLY");
-  if (start_pool.count == 0) pool_add(&start_pool, "{DEBT} IN THE HOLE - GET MINING");
+  for (int i = 0; i < SECTION_COUNT; i++) {
+    if (SECTIONS[i].pool->count == 0) {
+      pool_add(SECTIONS[i].pool, SECTIONS[i].fallback);
+    }
+  }
 }
 
 static void say(const char *text, SDL_Color c) {
@@ -107,27 +152,31 @@ static const char *pick(LinePool *p) {
   return p->lines[i];
 }
 
+/** Copy tmpl into out with the first ph replaced by value. */
+static void expand_int(char *out, size_t n, const char *tmpl, const char *ph,
+                       int value) {
+  const char *hit = SDL_strstr(tmpl, ph);
+  if (hit) {
+    SDL_snprintf(out, n, "%.*s%d%s", (int)(hit - tmpl), tmpl, value,
+                 hit + SDL_strlen(ph));
+  } else {
+    SDL_strlcpy(out, tmpl, n);
+  }
+}
+
 void dialogue_run_start(int debt) {
   static int idx = 0;
   const char *tmpl = start_pool.lines[idx % start_pool.count];
   idx++;
 
   char buf[DIALOGUE_MAX];
-  const char *ph = SDL_strstr(tmpl, "{DEBT}");
-  if (ph) {
-    SDL_snprintf(buf, sizeof(buf), "%.*s%d%s", (int)(ph - tmpl), tmpl, debt,
-                 ph + 6);
-  } else {
-    SDL_strlcpy(buf, tmpl, sizeof(buf));
-  }
-
+  expand_int(buf, sizeof(buf), tmpl, "{DEBT}", debt);
   say(buf, (SDL_Color){ 230, 150, 90, 255 });  // debt orange
 
   // Opening lesson follows the debt line (quest_grant_tutorial pays it)
   char tip[DIALOGUE_MAX];
-  SDL_snprintf(tip, sizeof(tip),
-               "PRESS Q AT THE DOCK - ANY CONTRACT PAYS %d CR EXTRA",
-               QUEST_TUTORIAL_REWARD);
+  expand_int(tip, sizeof(tip), pick(&tutorial_tip_pool), "{BONUS}",
+             QUEST_TUTORIAL_REWARD);
   enqueue(tip, (SDL_Color){ 230, 120, 255, 255 });
 }
 
@@ -172,33 +221,27 @@ void dialogue_on_event(EventType type, Vec2f pos) {
                 ACT_MISSILE, (SDL_Color){ 255, 200, 120, 255 });
     break;
   case EV_DISTRESS_CALL:
-    say("MAYDAY - FREIGHTER UNDER ATTACK - AMBER MARKER ON NAV",
-        (SDL_Color){ 255, 180, 60, 255 });
+    say(pick(&distress_call_pool), (SDL_Color){ 255, 180, 60, 255 });
     break;
   case EV_DISTRESS_ARRIVED:
-    say("GET THEM OFF ME DREG - HOLD THEM OFF",
-        (SDL_Color){ 255, 180, 60, 255 });
+    say(pick(&distress_arrived_pool), (SDL_Color){ 255, 180, 60, 255 });
     break;
   case EV_DISTRESS_SAVED:
-    say("HAUL INTACT - SALVAGE JETTISONED, CREDITS WIRED",
-        (SDL_Color){ 255, 180, 60, 255 });
+    say(pick(&distress_saved_pool), (SDL_Color){ 255, 180, 60, 255 });
     break;
   case EV_DISTRESS_LOST:
-    say("SIGNAL LOST - ONLY DUST ON THE SCAN",
-        (SDL_Color){ 255, 180, 60, 255 });
+    say(pick(&distress_lost_pool), (SDL_Color){ 255, 180, 60, 255 });
     break;
   case EV_DISTRESS_AMBUSH:
-    say("NO FREIGHTER ON SCAN - IT'S BAIT",
-        (SDL_Color){ 255, 90, 80, 255 });
+    say(pick(&distress_ambush_pool), (SDL_Color){ 255, 90, 80, 255 });
     break;
   case EV_DISTRESS_CLEARED:
-    say("DECOY CLEARED - SALVAGE BOUNTY WIRED",
-        (SDL_Color){ 255, 180, 60, 255 });
+    say(pick(&distress_cleared_pool), (SDL_Color){ 255, 180, 60, 255 });
     break;
   case EV_TUTORIAL_DONE: {
     char buf[DIALOGUE_MAX];
-    SDL_snprintf(buf, sizeof(buf), "SIGNING BONUS WIRED - %d CR - GOOD HUNTING",
-                 QUEST_TUTORIAL_REWARD);
+    expand_int(buf, sizeof(buf), pick(&tutorial_done_pool), "{BONUS}",
+               QUEST_TUTORIAL_REWARD);
     say(buf, (SDL_Color){ 255, 200, 80, 255 });
     break;
   }
