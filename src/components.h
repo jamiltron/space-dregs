@@ -117,6 +117,7 @@ typedef struct Pirate {
   float wander_dir;    /**< Idle heading, degrees. */
   int hp;
   int loot;            /**< Scrap collected; drops on death. */
+  float leak_timer;    /**< Counts up while loot is held; leaks 1 per interval. */
   int archetype;       /**< PirateArchetype; indexes the stats table. */
 } Pirate;
 

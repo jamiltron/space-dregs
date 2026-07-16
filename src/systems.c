@@ -247,6 +247,22 @@ void system_pirate(World *world, float dt) {
 
     pirate->fire_cooldown -= dt;
 
+    // Hoarded loot drips back out into the field, dropped outside the
+    // pirate's own magnet so it doesn't just re-collect it
+    if (pirate->loot > 0) {
+      pirate->leak_timer += dt;
+      if (pirate->leak_timer >= PIRATE_LOOT_LEAK_SECS) {
+        pirate->leak_timer = 0.0f;
+        pirate->loot--;
+        Vec2f back = vec2f_dir(DEG_TO_RAD(tf->angle + 180.0f));
+        Vec2f drop = vec2f_add(tf->position,
+                               vec2f_mul(back, PIRATE_MAGNET_RADIUS + 24.0f));
+        scrap_scatter(world, drop, vec2f_mul(back, 30.0f), 1);
+      }
+    } else {
+      pirate->leak_timer = 0.0f;
+    }
+
     Vec2f to_player = { 0 };
     float dist = 0.0f;
     bool engaged = false;
@@ -458,6 +474,30 @@ void system_scrap(World *world, float dt) {
       float pull = SCRAP_MAGNET_PULL * (1.2f - dist / magnet_radius);
       world->velocities[e].value =
           vec2f_add(world->velocities[e].value, vec2f_mul(dir, pull * dt));
+    }
+
+    // Pirates run a weaker magnet of their own (kamikazes don't loot)
+    for (Entity p = 0; p < world->high_water; p++) {
+      if (!entity_has(world, p, C_PIRATE | C_TRANSFORM)) continue;
+      if (entity_has(world, p, C_FROZEN)) continue;
+      if (pirate_stats(world->pirates[p].archetype)->kamikaze) continue;
+
+      Vec2f pd = vec2f_sub(world->transforms[p].position,
+                           world->transforms[e].position);
+      float pdist = vec2f_length(pd);
+      if (pdist >= PIRATE_MAGNET_RADIUS) continue;
+
+      if (pdist < PIRATE_SCRAP_PICKUP) {
+        world->pirates[p].loot++;
+        entity_destroy(world, e);
+        break;
+      }
+
+      Vec2f pdir = vec2f_mul(pd, 1.0f / pdist);
+      float ppull = SCRAP_MAGNET_PULL * 0.6f *
+                    (1.2f - pdist / PIRATE_MAGNET_RADIUS);
+      world->velocities[e].value =
+          vec2f_add(world->velocities[e].value, vec2f_mul(pdir, ppull * dt));
     }
   }
 }

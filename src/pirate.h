@@ -24,6 +24,8 @@
 #define PIRATE_RAM_DAMAGE 15
 #define PIRATE_SCRAP_RADIUS 350.0f   /**< Loots scrap it notices while idle. */
 #define PIRATE_SCRAP_PICKUP 22.0f
+#define PIRATE_MAGNET_RADIUS 160.0f  /**< Scrap pull range (weaker than the player's). */
+#define PIRATE_LOOT_LEAK_SECS 5.0f   /**< Held loot drips back out at 1 per this. */
 #define PIRATE_GLOW_COLOR (SDL_Color){ 255, 90, 60, 255 }  /**< Hostile red halo. */
 
 #define PIRATE_BRUTE_MIN_DIST 2000.0f  /**< Brutes only spawn past this. */
