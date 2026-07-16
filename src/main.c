@@ -220,6 +220,9 @@ static void main_loop(void *arg) {
       app.running = false;
       break;
     case SDL_EVENT_KEY_DOWN:
+      // Discrete actions only: auto-repeat spams menus and purchases
+      // (held-key gameplay polls key state and is unaffected)
+      if (event.key.repeat) break;
       // Dev: F9 records a fresh run, F10 replays the last recording
       if (event.key.scancode == SDL_SCANCODE_F9) {
         if (replay_mode() == REPLAY_RECORD) {
