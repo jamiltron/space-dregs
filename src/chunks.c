@@ -68,9 +68,18 @@ static void chunk_populate(Chunks *ck, World *world, int cx, int cy,
     outpost = vec2f_add(base,
                         vec2f_new((0.25f + SDL_randf_r(&rng) * 0.5f) * CHUNK_SIZE,
                                   (0.25f + SDL_randf_r(&rng) * 0.5f) * CHUNK_SIZE));
-    station_spawn(world, outpost,
-                  station_palette(SDL_rand_r(&rng, STATION_PALETTE_COUNT)));
-    has_outpost = true;
+
+    // Stations keep their distance: a roll landing too close to an
+    // existing one (home, outpost, or delivery target) is forfeited
+    Entity near = station_nearest(world, outpost);
+    if (near == MAX_ENTITIES ||
+        vec2f_length(vec2f_sub(outpost,
+                               world->transforms[near].position)) >=
+            STATION_MIN_SPACING) {
+      station_spawn(world, outpost,
+                    station_palette(SDL_rand_r(&rng, STATION_PALETTE_COUNT)));
+      has_outpost = true;
+    }
   }
 
   int rocks = 3 + SDL_rand_r(&rng, 3);
@@ -88,7 +97,11 @@ static void chunk_populate(Chunks *ck, World *world, int cx, int cy,
 
     float radius = ASTEROID_MIN_RADIUS +
                    SDL_randf_r(&rng) * (ASTEROID_MAX_RADIUS - ASTEROID_MIN_RADIUS);
-    asteroid_spawn(world, pos, radius);
+    Entity rock = asteroid_spawn(world, pos, radius);
+    if (home_dist > ASTEROID_RICH_MIN_DIST &&
+        SDL_randf_r(&rng) < ASTEROID_RICH_CHANCE) {
+      asteroid_make_rich(world, rock);
+    }
   }
 
   if (SDL_randf_r(&rng) < 0.10f) {

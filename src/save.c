@@ -90,10 +90,10 @@ bool save_write(App *app) {
 
     if (entity_has(w, e, C_ASTEROID)) {
       const Asteroid *ast = &w->asteroids[e];
-      SDL_IOprintf(io, "ast %f %f %f %f %f %f %f %d %d\n",
+      SDL_IOprintf(io, "ast %f %f %f %f %f %f %f %d %d %d\n",
                    t->position.x, t->position.y, t->angle,
                    v->value.x, v->value.y, v->spin,
-                   ast->radius, ast->generation, ast->hp);
+                   ast->radius, ast->generation, ast->hp, ast->kind);
     } else if (entity_has(w, e, C_PIRATE)) {
       const Pirate *pir = &w->pirates[e];
       SDL_IOprintf(io, "pir %f %f %f %f %f %d %d %d\n",
@@ -223,15 +223,17 @@ bool save_read(App *app) {
 
     if (SDL_sscanf(l, "cell %d %d", &ca, &cb) == 2) {
       chunks_restore_cell(&app->chunks, ca, cb);
-    } else if (SDL_sscanf(l, "ast %f %f %f %f %f %f %f %d %d", &ep.x, &ep.y,
+    } else if (SDL_sscanf(l, "ast %f %f %f %f %f %f %f %d %d %d", &ep.x, &ep.y,
                           &ang, &ev.x, &ev.y, &spin, &radius, &gen,
-                          &ihp) == 9) {
+                          &ihp, &kind) >= 9) {
+      // kind stays 0 (plain) in pre-rich saves with 9 fields
       Entity e = asteroid_spawn(w, ep, radius);
+      if (kind == ASTEROID_RICH) asteroid_make_rich(w, e);
       w->transforms[e].angle = ang;
       w->velocities[e].value = ev;
       w->velocities[e].spin = spin;
       w->asteroids[e].generation = gen;
-      w->asteroids[e].hp = ihp;
+      w->asteroids[e].hp = ihp;  // after make_rich so the bonus doesn't stack
     } else if (SDL_sscanf(l, "pir %f %f %f %f %f %d %d %d", &ep.x, &ep.y,
                           &ang, &ev.x, &ev.y, &ihp, &loot, &kind) >= 7) {
       // kind stays 0 (dart) in pre-archetype saves with 7 fields

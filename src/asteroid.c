@@ -8,6 +8,8 @@
 
 // Brighter green flash than the asteroid bodies
 #define CHIP_COLOR (SDL_Color){ 110, 190, 125, 255 }
+// Rich rocks spark gold like the ore they carry
+#define RICH_CHIP_COLOR (SDL_Color){ 255, 210, 110, 255 }
 
 /** Each asteroid is a lumpy polygon: points evenly spaced around a
  *  circle with per-vertex radius jitter. They drift in a random
@@ -57,6 +59,16 @@ Entity asteroid_spawn(World *world, Vec2f position, float radius) {
   return e;
 }
 
+void asteroid_make_rich(World *world, Entity e) {
+  world->asteroids[e].kind = ASTEROID_RICH;
+  world->asteroids[e].hp += ASTEROID_RICH_HP_BONUS;
+
+  Wireframe *wf = &world->wireframes[e];
+  wf->color      = (SDL_Color){ 205, 170, 70, 255 };
+  wf->glow_color = (SDL_Color){ 255, 200, 90, 255 };
+  world->masks[e] |= C_GLOW;  // plain rocks don't glow; rich ones beckon
+}
+
 /** Debris sprays from the impact point; children and scrap come from
  *  the body itself. */
 void asteroid_hit(World *world, Entity e, int damage, Vec2f impact) {
@@ -64,11 +76,13 @@ void asteroid_hit(World *world, Entity e, int damage, Vec2f impact) {
   Vec2f position = world->transforms[e].position;
   Vec2f velocity = world->velocities[e].value;
 
+  SDL_Color chip = ast.kind == ASTEROID_RICH ? RICH_CHIP_COLOR : CHIP_COLOR;
+
   world->asteroids[e].hp -= damage;
   if (world->asteroids[e].hp > 0) {
     world->wireframes[e].flash = 0.07f;
     debris_burst(world, impact, velocity, 1 + damage + world_rand(world, 2),
-                 CHIP_COLOR, 1.0f);
+                 chip, 1.0f);
     events_emit(EV_ASTEROID_CHIPPED, impact);
     return;
   }
@@ -88,15 +102,20 @@ void asteroid_hit(World *world, Entity e, int damage, Vec2f impact) {
           child_radius);
 
       world->asteroids[child].generation = ast.generation + 1;
+      if (ast.kind == ASTEROID_RICH) asteroid_make_rich(world, child);
       world->velocities[child].value =
           vec2f_add(velocity, vec2f_mul(dir, 40.0f + world_randf(world) * 50.0f));
     }
 
-    debris_burst(world, impact, velocity, 3 + world_rand(world, 3), CHIP_COLOR, 1.0f);
+    debris_burst(world, impact, velocity, 3 + world_rand(world, 3), chip, 1.0f);
     events_emit(EV_ASTEROID_BROKE, impact);
   } else {
-    debris_burst(world, impact, velocity, 6 + world_rand(world, 5), CHIP_COLOR, 1.0f);
-    scrap_scatter(world, position, velocity, 2 + world_rand(world, 2));
+    int payout = ast.kind == ASTEROID_RICH
+                     ? ASTEROID_RICH_SCRAP_BASE +
+                           world_rand(world, ASTEROID_RICH_SCRAP_SPREAD)
+                     : 2 + world_rand(world, 2);
+    debris_burst(world, impact, velocity, 6 + world_rand(world, 5), chip, 1.0f);
+    scrap_scatter(world, position, velocity, payout);
     events_emit(EV_ASTEROID_DESTROYED, position);
   }
 

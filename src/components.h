@@ -139,6 +139,7 @@ typedef struct Asteroid {
   int generation;  /**< 0 = full size; splits until the last generation. */
   int hp;          /**< Hits left, scales with radius. */
   float radius;    /**< Base shape radius, children scale down from it. */
+  int kind;        /**< AsteroidKind; rich rocks glow gold and pay big. */
 } Asteroid;
 
 /** Countdown to despawn; render fades alpha by remaining/initial. */

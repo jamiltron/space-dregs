@@ -107,7 +107,8 @@ bool quest_try_accept(Quest *q, World *world, Entity player, int index) {
   case QUEST_FETCH:   dist = 2200.0f + world_randf(world) * 1800.0f; break;
   case QUEST_BOUNTY:  dist = 1800.0f + world_randf(world) * 1500.0f; break;
   case QUEST_DELIVER:
-    dist = 2800.0f + world_randf(world) * 2200.0f;
+    // Past the spacing floor so the new station honors it from here
+    dist = STATION_MIN_SPACING + 200.0f + world_randf(world) * 2200.0f;
     q->carrying = true;
     break;
   default:
@@ -115,6 +116,21 @@ bool quest_try_accept(Quest *q, World *world, Entity player, int index) {
   }
 
   q->target_pos = vec2f_add(base, vec2f_mul(dir, dist));
+
+  if (q->type == QUEST_DELIVER) {
+    // Slide further out until clear of every other station too
+    for (int guard = 0; guard < 8; guard++) {
+      Entity near = station_nearest(world, q->target_pos);
+      if (near == MAX_ENTITIES ||
+          vec2f_length(vec2f_sub(q->target_pos,
+                                 world->transforms[near].position)) >=
+              STATION_MIN_SPACING) {
+        break;
+      }
+      q->target_pos = vec2f_add(q->target_pos, vec2f_mul(dir, 1200.0f));
+    }
+  }
+
   spawn_target(q, world);
   events_emit(EV_QUEST_ACCEPTED, base);
   return true;

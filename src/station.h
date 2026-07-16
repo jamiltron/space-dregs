@@ -13,6 +13,7 @@
 
 #define STATION_DOCK_RADIUS 120.0f
 #define STATION_SAFE_ZONE 520.0f     /**< Pirates won't enter or fight inside. */
+#define STATION_MIN_SPACING 3840.0f  /**< Three screen widths between any two stations. */
 #define STATION_REFUEL_RATE 40.0f    /**< Fuel per second while holding refuel. */
 #define STATION_REPAIR_RATE 12.0f    /**< Hull per second while holding repair. */
 #define STATION_FUEL_PER_CREDIT 5.0f
