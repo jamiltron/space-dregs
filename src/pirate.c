@@ -37,13 +37,13 @@ static const PirateStats STATS[PIRATE_ARCHETYPE_COUNT] = {
   [PIRATE_DRONE] = {
     .size = 11.0f,
     .rot_speed = 220.0f,
-    .thrust = 130.0f,
-    .max_speed = 130.0f,
+    .thrust = 260.0f,
+    .max_speed = 260.0f,
     .fire_interval = 1.0f,  // unused: no gun
     .sense_radius = 420.0f,
     .damping = 2.5f,        // settles back to a standstill after knocks
     .hp = 2,
-    .ram_damage = 30,
+    .ram_damage = 60,
     .scrap_base = 1,
     .kamikaze = true,
   },
