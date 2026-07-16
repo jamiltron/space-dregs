@@ -34,6 +34,7 @@
 
 #define FACTION_TIER 20           /**< Standing where perks/penalties start. */
 #define FACTION_TIER_STRONG 50    /**< Standing where they deepen. */
+#define FACTION_DELTA_SECS 3.0f   /**< HUD display time for a standing change. */
 
 /** Adjust a standing, clamped to +/-FACTION_STANDING_MAX; emits
  *  threshold-crossing events for dialogue. */

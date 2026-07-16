@@ -23,11 +23,19 @@ static void threshold_events(FactionId id, int before, int after) {
 }
 
 void faction_add(World *world, FactionId id, int delta) {
-  int before = world->factions.standing[id];
+  Factions *f = &world->factions;
+  int before = f->standing[id];
   int s = before + delta;
   if (s > FACTION_STANDING_MAX) s = FACTION_STANDING_MAX;
   if (s < -FACTION_STANDING_MAX) s = -FACTION_STANDING_MAX;
-  world->factions.standing[id] = s;
+  f->standing[id] = s;
+
+  if (s != before) {
+    // A change while one is still displayed merges into a single total
+    f->delta[id] = (f->delta_timer[id] > 0.0f ? f->delta[id] : 0) + (s - before);
+    f->delta_timer[id] = f->delta[id] != 0 ? FACTION_DELTA_SECS : 0.0f;
+  }
+
   threshold_events(id, before, s);
 }
 
@@ -80,6 +88,10 @@ void faction_update(World *world, Entity player, float dt) {
 
   f->heat -= FACTION_HEAT_DECAY * dt;
   if (f->heat < 0.0f) f->heat = 0.0f;
+
+  for (int i = 0; i < FACTION_COUNT; i++) {
+    if (f->delta_timer[i] > 0.0f) f->delta_timer[i] -= dt;
+  }
 
   if (!entity_has(world, player, C_PLAYER | C_TRANSFORM)) return;
   Vec2f ppos = world->transforms[player].position;

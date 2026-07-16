@@ -151,6 +151,8 @@ typedef struct Factions {
   int standing[FACTION_COUNT];  /**< -100..100; 0 = unknown. */
   float heat;                   /**< Clan aggression; decays, drives hunters. */
   float hunter_timer;           /**< Seconds until the next hunter-spawn roll. */
+  int delta[FACTION_COUNT];     /**< Recent standing change, shown briefly. */
+  float delta_timer[FACTION_COUNT]; /**< HUD time left for that change. */
 } Factions;
 
 typedef enum FreighterMode {

@@ -318,10 +318,23 @@ void hud_render(World *world, Entity player, const Quest *quest,
     SDL_snprintf(buf, sizeof(buf), "MAYDAY - HAULER HULL %d",
                  (int)SDL_ceilf(distress->hull));
     font_draw_text(renderer, buf, HUD_MARGIN, y, 12.0f, COLOR_DISTRESS);
+    y += HUD_LINE_GAP * 0.8f;
   } else if (distress->state == DISTRESS_FIGHT) {
     SDL_snprintf(buf, sizeof(buf), "MAYDAY - RAIDERS LEFT %d",
                  distress->raiders);
     font_draw_text(renderer, buf, HUD_MARGIN, y, 12.0f, COLOR_DISTRESS);
+    y += HUD_LINE_GAP * 0.8f;
+  }
+
+  for (int i = 0; i < FACTION_COUNT; i++) {
+    if (world->factions.delta_timer[i] <= 0.0f) continue;
+    SDL_snprintf(buf, sizeof(buf), "%s %+d",
+                 i == FACTION_GUILD ? "GUILD" : "CLANS",
+                 world->factions.delta[i]);
+    SDL_Color up = i == FACTION_GUILD ? COLOR_DOCK : COLOR_DISTRESS;
+    font_draw_text(renderer, buf, HUD_MARGIN, y, 12.0f,
+                   world->factions.delta[i] >= 0 ? up : COLOR_DANGER);
+    y += HUD_LINE_GAP * 0.8f;
   }
 
   compass_render(world, player, quest, distress, renderer);
