@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include "chunks.h"
+#include "app.h"
 #include "asteroid.h"
 #include "pirate.h"
 #include "signal.h"
@@ -45,8 +46,15 @@ static bool chunks_mark(Chunks *ck, int cx, int cy) {
   return true;
 }
 
+/** Would a spawn here be inside the camera's view (plus margin)? */
+static bool on_screen(Vec2f pos, Vec2f camera) {
+  return fabsf(pos.x - camera.x) < WINDOW_WIDTH / 2.0f + CHUNK_VIEW_MARGIN &&
+         fabsf(pos.y - camera.y) < WINDOW_HEIGHT / 2.0f + CHUNK_VIEW_MARGIN;
+}
+
 /** Fill a fresh cell; density and danger scale with distance from home. */
-static void chunk_populate(Chunks *ck, World *world, int cx, int cy) {
+static void chunk_populate(Chunks *ck, World *world, int cx, int cy,
+                           Vec2f camera) {
   Uint64 rng = chunk_rng_state(ck->seed, cx, cy);
   Vec2f base = vec2f_new((float)cx * CHUNK_SIZE, (float)cy * CHUNK_SIZE);
   Vec2f center = vec2f_add(base, vec2f_new(CHUNK_SIZE / 2.0f, CHUNK_SIZE / 2.0f));
@@ -68,10 +76,12 @@ static void chunk_populate(Chunks *ck, World *world, int cx, int cy) {
   int rocks = 3 + SDL_rand_r(&rng, 3);
   if (home_dist > 1500.0f) rocks += 1 + SDL_rand_r(&rng, 2);
   if (home_dist > 3000.0f) rocks += 2;
+  rocks = (int)((float)rocks * CHUNK_ROCK_RATE);
 
   for (int i = 0; i < rocks; i++) {
     Vec2f pos = vec2f_add(base, vec2f_new(SDL_randf_r(&rng) * CHUNK_SIZE,
                                           SDL_randf_r(&rng) * CHUNK_SIZE));
+    if (on_screen(pos, camera)) continue;  // never pop into the frame
     if (vec2f_length(vec2f_sub(pos, ck->home)) < CHUNK_SAFE_RADIUS) continue;
     if (has_outpost &&
         vec2f_length(vec2f_sub(pos, outpost)) < CHUNK_SAFE_RADIUS) continue;
@@ -132,7 +142,7 @@ void chunks_update(Chunks *ck, World *world, Vec2f camera) {
   for (int dy = -1; dy <= 1; dy++) {
     for (int dx = -1; dx <= 1; dx++) {
       if (chunks_mark(ck, ccx + dx, ccy + dy)) {
-        chunk_populate(ck, world, ccx + dx, ccy + dy);
+        chunk_populate(ck, world, ccx + dx, ccy + dy, camera);
       }
     }
   }

@@ -9,6 +9,8 @@
  *  cell coords — deterministic layout, denser rocks and more pirates
  *  (and rare outpost stations) farther from home. Cells populate
  *  exactly once; their contents then live as normal entities.
+ *  Asteroids landing inside the current viewport are dropped so rocks
+ *  never pop into view (the camera is sim-derived, so replays hold).
  */
 
 #ifndef _SD_CHUNKS_H
@@ -18,6 +20,8 @@
 #define CHUNK_SIZE 1200.0f
 #define CHUNK_TABLE_CAP 4096            /**< Power of two; visited-cell hash set. */
 #define CHUNK_SAFE_RADIUS 420.0f        /**< No spawns this close to home. */
+#define CHUNK_ROCK_RATE 1.5f            /**< Asteroid count multiplier per cell. */
+#define CHUNK_VIEW_MARGIN 80.0f         /**< Rocks spawn at least this far past the screen edge. */
 #define CHUNK_PIRATE_MIN_DIST 800.0f
 #define CHUNK_STATION_MIN_DIST 2500.0f  /**< Wild stations only spawn past this. */
 #define CHUNK_STATION_CHANCE 0.05f      /**< Per chunk, out in the deep field. */
