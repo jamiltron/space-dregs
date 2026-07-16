@@ -216,15 +216,13 @@ static void rescue(Distress *d, World *world, Entity player, Entity freighter) {
   scrap_scatter(world, world->transforms[freighter].position,
                 world->velocities[freighter].value, DISTRESS_RESCUE_SCRAP);
 
-  // It burns for the horizon and quietly despawns far off-screen
+  // Untagged = departing; system_freighters steers it off and
+  // despawns it once out of view
   float heading = world_randf(world) * 360.0f;
   world->transforms[freighter].angle = heading;
   world->velocities[freighter].value =
-      vec2f_mul(vec2f_dir(DEG_TO_RAD(heading)), 190.0f);
+      vec2f_mul(vec2f_dir(DEG_TO_RAD(heading)), FREIGHTER_FLEE_SPEED);
   world->masks[freighter] &= ~C_DISTRESS;
-  world->masks[freighter] |= C_LIFETIME;
-  world->lifetimes[freighter] = (Lifetime){ .remaining = 30.0f,
-                                            .initial = 30.0f };
 
   events_emit(EV_DISTRESS_SAVED, d->pos);
   go_idle(d, world);

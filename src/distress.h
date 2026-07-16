@@ -33,6 +33,10 @@
 #define FREIGHTER_RAM_HIT 2            /**< Dealt to the hauler by that bump. */
 #define FREIGHTER_BLAME_DAMAGE 4.0f    /**< Player damage share that earns the
                                             kill blame when the hauler breaks. */
+#define FREIGHTER_FLEE_SPEED 190.0f    /**< Departure cruise after a rescue. */
+#define FREIGHTER_TURN 60.0f           /**< Deg/s of departure steering. */
+#define FREIGHTER_AVOID_RADIUS 240.0f  /**< Steers away from rocks inside this. */
+#define FREIGHTER_DESPAWN_MARGIN 120.0f /**< Past the screen edge by this: gone. */
 #define DISTRESS_DIST_MIN 1400.0f      /**< Scene distance from the player... */
 #define DISTRESS_DIST_SPREAD 600.0f    /**< ...plus up to this much. */
 #define DISTRESS_SCENE_RADIUS 550.0f   /**< Arriving inside pauses the clock. */

@@ -557,6 +557,49 @@ void system_missiles(World *world, float dt) {
   }
 }
 
+/** Departing (untagged) haulers cruise away, veering around rocks,
+ *  and despawn once safely past the screen edge. */
+void system_freighters(World *world, Vec2f camera, float dt) {
+  for (Entity e = 0; e < world->high_water; e++) {
+    if (!entity_has(world, e, C_FREIGHTER | C_TRANSFORM | C_VELOCITY))
+      continue;
+    if (entity_has(world, e, C_DISTRESS) || entity_has(world, e, C_FROZEN))
+      continue;
+
+    Transform *tf = &world->transforms[e];
+
+    if (fabsf(tf->position.x - camera.x) >
+            WINDOW_WIDTH / 2.0f + FREIGHTER_DESPAWN_MARGIN ||
+        fabsf(tf->position.y - camera.y) >
+            WINDOW_HEIGHT / 2.0f + FREIGHTER_DESPAWN_MARGIN) {
+      entity_destroy(world, e);
+      continue;
+    }
+
+    Vec2f fwd = vec2f_dir(DEG_TO_RAD(tf->angle));
+    Vec2f steer = fwd;
+    for (Entity r = 0; r < world->high_water; r++) {
+      if (!entity_has(world, r, C_ASTEROID | C_TRANSFORM)) continue;
+
+      Vec2f away = vec2f_sub(tf->position, world->transforms[r].position);
+      float d = vec2f_length(away);
+      if (d <= 0.0f || d >= FREIGHTER_AVOID_RADIUS) continue;
+      steer = vec2f_add(steer, vec2f_mul(away, (1.0f - d / FREIGHTER_AVOID_RADIUS) *
+                                                   (1.5f / d)));
+    }
+
+    float want = vec2f_heading(steer);
+    float err = fmodf(want - tf->angle + 540.0f, 360.0f) - 180.0f;
+    float max_turn = FREIGHTER_TURN * dt;
+    if (err > max_turn) err = max_turn;
+    if (err < -max_turn) err = -max_turn;
+    tf->angle += err;
+
+    world->velocities[e].value =
+        vec2f_mul(vec2f_dir(DEG_TO_RAD(tf->angle)), FREIGHTER_FLEE_SPEED);
+  }
+}
+
 void system_lifetime(World *world, float dt) {
   for (Entity e = 0; e < world->high_water; e++) {
     if (!entity_has(world, e, C_LIFETIME)) continue;

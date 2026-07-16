@@ -113,6 +113,7 @@ static void simulate(float dt) {
   system_pirate(&app.world, dt);
   system_movement(&app.world, dt);
   system_missiles(&app.world, dt);
+  system_freighters(&app.world, app.camera, dt);
   system_collision(&app.world);
   system_scrap(&app.world, dt);
   system_mines(&app.world, dt);

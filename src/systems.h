@@ -40,6 +40,9 @@ void system_mines(World *world, float dt);
 /** Steer missiles toward the nearest pirate in seeker range. */
 void system_missiles(World *world, float dt);
 
+/** Steer departing haulers around rocks; despawn them once off screen. */
+void system_freighters(World *world, Vec2f camera, float dt);
+
 /** Damage to the player lands on the shield first, then the hull. */
 void player_take_damage(Player *player, int dmg);
 
