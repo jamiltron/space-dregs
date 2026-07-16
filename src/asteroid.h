@@ -19,7 +19,9 @@
 #define ASTEROID_GENERATIONS 3   /**< Splits twice, third break bursts. */
 
 #define ASTEROID_RICH_MIN_DIST 2500.0f /**< Rich rocks only roll past this from home. */
-#define ASTEROID_RICH_CHANCE 0.10f     /**< Per rock, out in the deep field. */
+#define ASTEROID_RICH_CHANCE 0.067f    /**< Per rock; scaled inversely with
+                                            CHUNK_ROCK_RATE so gold density
+                                            stays put as plain rocks multiply. */
 #define ASTEROID_RICH_HP_BONUS 2       /**< Denser ore cracks slower. */
 #define ASTEROID_RICH_SCRAP_BASE 5     /**< Final-burst payout (plain pays 2-3)... */
 #define ASTEROID_RICH_SCRAP_SPREAD 3   /**< ...plus up to this much. */

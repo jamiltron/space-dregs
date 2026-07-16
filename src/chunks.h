@@ -20,7 +20,7 @@
 #define CHUNK_SIZE 1200.0f
 #define CHUNK_TABLE_CAP 4096            /**< Power of two; visited-cell hash set. */
 #define CHUNK_SAFE_RADIUS 420.0f        /**< No spawns this close to home. */
-#define CHUNK_ROCK_RATE 1.5f            /**< Asteroid count multiplier per cell. */
+#define CHUNK_ROCK_RATE 2.25f           /**< Asteroid count multiplier per cell. */
 #define CHUNK_VIEW_MARGIN 80.0f         /**< Rocks spawn at least this far past the screen edge. */
 #define CHUNK_PIRATE_MIN_DIST 800.0f
 #define CHUNK_STATION_MIN_DIST 2500.0f  /**< Wild stations only spawn past this. */
