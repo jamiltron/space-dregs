@@ -796,22 +796,34 @@ void system_render(World *world, SDL_Renderer *renderer, Vec2f view_offset,
       // Flame extends backward from ship, longer on upgraded engines
       float fire_scale = sqrtf(player->thrust_force / SHIP_THRUST_FORCE);
       Vec2f flame_dir = vec2f_rotate(vec2f_new(0.0f, 1.0f), rad);
+      Vec2f side = vec2f_rotate(vec2f_new(1.0f, 0.0f), rad);
       float flicker = 0.6f + 0.4f * (float)(SDL_GetTicks() % 100) / 100.0f;
-      Vec2f flame_end = vec2f_add(
-                                  exhaust_world,
-                                  vec2f_mul(flame_dir, player->flame_length *
-                                                           flicker * fire_scale)
-                                  );
+      float len = player->flame_length * flicker * fire_scale;
+      float half_w = player->flame_length * 0.4f * fire_scale;
 
-      SDL_FPoint flame[2] = {
-        { .x = exhaust_world.x, .y = exhaust_world.y },
-        { .x = flame_end.x,     .y = flame_end.y     },
+      // Icon-style wedge: an open V off the stern with a hot core
+      Vec2f apex = vec2f_add(exhaust_world, vec2f_mul(flame_dir, len));
+      SDL_FPoint outer[3] = {
+        { .x = exhaust_world.x - side.x * half_w,
+          .y = exhaust_world.y - side.y * half_w },
+        { .x = apex.x, .y = apex.y },
+        { .x = exhaust_world.x + side.x * half_w,
+          .y = exhaust_world.y + side.y * half_w },
+      };
+      Vec2f core_apex = vec2f_add(exhaust_world,
+                                  vec2f_mul(flame_dir, len * 0.55f));
+      SDL_FPoint core[3] = {
+        { .x = exhaust_world.x - side.x * half_w * 0.45f,
+          .y = exhaust_world.y - side.y * half_w * 0.45f },
+        { .x = core_apex.x, .y = core_apex.y },
+        { .x = exhaust_world.x + side.x * half_w * 0.45f,
+          .y = exhaust_world.y + side.y * half_w * 0.45f },
       };
 
-      SDL_SetRenderDrawColor(renderer, 255, 160, 40, 255);
-      draw_lines(renderer, flame, 2);
-      SDL_SetRenderDrawColor(renderer, 255, 220, 100, 180);
-      draw_lines(renderer, flame, 2);
+      SDL_SetRenderDrawColor(renderer, 255, 110, 50, 255);
+      draw_lines(renderer, outer, 3);
+      SDL_SetRenderDrawColor(renderer, 255, 220, 110, 220);
+      draw_lines(renderer, core, 3);
     }
   }
 }
