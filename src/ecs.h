@@ -36,6 +36,8 @@ typedef struct World {
   Mine      mines[MAX_ENTITIES];
   Freighter freighters[MAX_ENTITIES];
 
+  Factions factions;  /**< Run-scoped standings and clan heat. */
+
   // Entity allocation
   Entity free_list[MAX_ENTITIES];
   int    free_count;

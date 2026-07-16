@@ -732,7 +732,7 @@ void system_collision(World *world) {
           asteroid_hit(world, other, punch, contact);
           entity_destroy(world, bullet);
         } else if (!hostile && entity_has(world, other, C_PIRATE)) {
-          pirate_hit(world, other, punch, contact);
+          pirate_hit(world, other, punch, contact, true);
           entity_destroy(world, bullet);
         } else if (hostile && entity_has(world, other, C_PLAYER)) {
           Player *player = &world->players[other];
@@ -854,11 +854,13 @@ void system_collision(World *world) {
 
         if (dmg_a > 0) {
           if (entity_has(world, a, C_ASTEROID)) asteroid_hit(world, a, dmg_a, contact);
-          else if (entity_has(world, a, C_PIRATE)) pirate_hit(world, a, dmg_a, contact);
+          else if (entity_has(world, a, C_PIRATE))
+            pirate_hit(world, a, dmg_a, contact, false);
         }
         if (dmg_b > 0) {
           if (entity_has(world, b, C_ASTEROID)) asteroid_hit(world, b, dmg_b, contact);
-          else if (entity_has(world, b, C_PIRATE)) pirate_hit(world, b, dmg_b, contact);
+          else if (entity_has(world, b, C_PIRATE))
+            pirate_hit(world, b, dmg_b, contact, false);
         }
       }
     }

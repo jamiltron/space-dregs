@@ -3,6 +3,7 @@
 
 #include "station.h"
 #include "events.h"
+#include "faction.h"
 #include "mine.h"
 #include "missile.h"
 #include "replay.h"
@@ -261,6 +262,7 @@ void station_update(World *world, Entity player, float dt) {
       paid = true;
 
       if (p->debt == 0) {
+        faction_add(world, FACTION_GUILD, 10);
         events_emit(EV_DEBT_PAID, world->transforms[player].position);
       }
     }

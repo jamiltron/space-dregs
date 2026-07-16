@@ -3,6 +3,7 @@
 
 #include "pirate.h"
 #include "events.h"
+#include "faction.h"
 #include "particles.h"
 #include "scrap.h"
 
@@ -209,7 +210,8 @@ Entity pirate_spawn(World *world, Vec2f position, PirateArchetype type) {
 
 /** Sparks on a survivable hit; death bursts and pays out the base
  *  scrap plus any hoarded loot. */
-void pirate_hit(World *world, Entity e, int damage, Vec2f impact) {
+void pirate_hit(World *world, Entity e, int damage, Vec2f impact,
+                bool by_player) {
   Vec2f velocity = world->velocities[e].value;
   const PirateStats *st = pirate_stats(world->pirates[e].archetype);
 
@@ -220,6 +222,10 @@ void pirate_hit(World *world, Entity e, int damage, Vec2f impact) {
                  PIRATE_CHIP_COLOR, 1.0f);
     events_emit(EV_PIRATE_CHIPPED, impact);
     return;
+  }
+
+  if (by_player) {
+    faction_on_pirate_kill(world, world->pirates[e].archetype, false);
   }
 
   Vec2f position = world->transforms[e].position;

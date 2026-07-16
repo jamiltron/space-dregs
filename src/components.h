@@ -137,6 +137,20 @@ typedef struct Mine {
 } Mine;
 
 /** Minable rock. */
+/** Faction ids; standing and heat live on World.factions. */
+typedef enum FactionId {
+  FACTION_GUILD,  /**< The station network: board, services, upgrades. */
+  FACTION_CLANS,  /**< The pirate clans. */
+  FACTION_COUNT
+} FactionId;
+
+/** Run-scoped faction state (API in faction.h). */
+typedef struct Factions {
+  int standing[FACTION_COUNT];  /**< -100..100; 0 = unknown. */
+  float heat;                   /**< Clan aggression; decays, drives hunters. */
+  float hunter_timer;           /**< Seconds until the next hunter-spawn roll. */
+} Factions;
+
 /** Neutral hauler. */
 typedef struct Freighter {
   float hp;             /**< Small-int damage scale. */

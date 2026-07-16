@@ -80,8 +80,10 @@ const PirateStats *pirate_stats(int archetype);
 /** Spawn a pirate of the given archetype; behavior runs in system_pirate. */
 Entity pirate_spawn(World *world, Vec2f position, PirateArchetype type);
 
-/** Apply damage: spark, or burst with a scrap+loot payout on death. */
-void pirate_hit(World *world, Entity e, int damage, Vec2f impact);
+/** Apply damage: spark, or burst with a scrap+loot payout on death.
+ *  by_player drives faction fallout (asteroid impacts pass false). */
+void pirate_hit(World *world, Entity e, int damage, Vec2f impact,
+                bool by_player);
 
 /** Kamikaze detonation: burst and die, no payout (shooting one down
  *  through pirate_hit still pays). */

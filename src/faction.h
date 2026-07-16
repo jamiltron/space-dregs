@@ -1,0 +1,33 @@
+// Copyright (C) 2026 Justin Hamilton
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+/** @file
+ *  Faction standings and clan heat.
+ *
+ *  Two run-scoped meters on World.factions: GUILD standing moves with
+ *  contracts, rescues, debt payments and hauler kills; CLANS standing
+ *  drops per pirate killed and rises with piracy. Sustained pirate
+ *  killing also builds heat, which sends hunter packs. All mutations
+ *  happen inside sim steps so replays and saves stay deterministic.
+ *  Future factions: the Lender (debt holder, endgame), independent
+ *  haulers (escort work), per-palette station houses.
+ */
+
+#ifndef _SD_FACTION_H
+#define _SD_FACTION_H
+#include <stdbool.h>
+#include "ecs.h"
+
+#define FACTION_STANDING_MAX 100
+#define FACTION_KILL_STANDING 1  /**< Clan standing lost per pirate kill. */
+#define FACTION_KILL_HEAT 1.0f   /**< Heat per pirate kill. */
+#define FACTION_CAPITAL_HEAT 3.0f /**< Heat per battleship/mothership kill. */
+
+/** Adjust a standing, clamped to +/-FACTION_STANDING_MAX. */
+void faction_add(World *world, FactionId id, int delta);
+
+/** A player pirate kill: clan standing drops; heat rises unless the
+ *  victim was a hunter (they came to you). */
+void faction_on_pirate_kill(World *world, int archetype, bool was_hunter);
+
+#endif

@@ -181,6 +181,15 @@ static void pause_render(SDL_Renderer *renderer) {
     y += 26.0f;
   }
 
+  char standings[48];
+  SDL_snprintf(standings, sizeof(standings), "GUILD %+d - CLANS %+d",
+               app.world.factions.standing[FACTION_GUILD],
+               app.world.factions.standing[FACTION_CLANS]);
+  font_draw_text(renderer, standings,
+                 (WINDOW_WIDTH - font_text_width(standings, 14.0f)) / 2.0f,
+                 y + 8.0f, 14.0f, (SDL_Color){ 230, 150, 90, 255 });
+  y += 34.0f;
+
 #ifdef __EMSCRIPTEN__
   const char *hint = "ESC RESUME - M MENU";
 #else

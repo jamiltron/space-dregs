@@ -67,6 +67,11 @@ bool save_write(App *app) {
   for (int i = 0; i < UPGRADE_COUNT; i++) {
     SDL_IOprintf(io, "up %d %d\n", i, p->upgrades[i]);
   }
+  SDL_IOprintf(io, "fac %d %d %f\n",
+               app->world.factions.standing[FACTION_GUILD],
+               app->world.factions.standing[FACTION_CLANS],
+               app->world.factions.heat);
+
   if (app->quest.type != QUEST_NONE) {
     SDL_IOprintf(io, "quest %d %d %f %f %d\n", (int)app->quest.type,
                  app->quest.reward, app->quest.target_pos.x,
@@ -221,8 +226,13 @@ bool save_read(App *app) {
     Vec2f ep = { 0 }, ev = { 0 };
     float ang = 0.0f, spin = 0.0f, radius = 0.0f;
 
+    float heat = 0.0f;
     if (SDL_sscanf(l, "cell %d %d", &ca, &cb) == 2) {
       chunks_restore_cell(&app->chunks, ca, cb);
+    } else if (SDL_sscanf(l, "fac %d %d %f", &ca, &cb, &heat) == 3) {
+      app->world.factions.standing[FACTION_GUILD] = ca;
+      app->world.factions.standing[FACTION_CLANS] = cb;
+      app->world.factions.heat = heat;
     } else if (SDL_sscanf(l, "ast %f %f %f %f %f %f %f %d %d %d", &ep.x, &ep.y,
                           &ang, &ev.x, &ev.y, &spin, &radius, &gen,
                           &ihp, &kind) >= 9) {

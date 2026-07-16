@@ -3,6 +3,7 @@
 
 #include "quest.h"
 #include "events.h"
+#include "faction.h"
 #include "pirate.h"
 #include "station.h"
 
@@ -194,6 +195,7 @@ void quest_abandon(Quest *q, World *world) {
  *  docked frame rolls a fresh board. */
 static void complete(Quest *q, World *world, Entity player) {
   world->players[player].money += q->reward;
+  faction_add(world, FACTION_GUILD, q->type == QUEST_BOUNTY ? 3 : 2);
   if (q->type == QUEST_BOUNTY) {
     world->players[player].bounties_done++;  // guild reputation
   }

@@ -3,6 +3,7 @@
 
 #include "distress.h"
 #include "events.h"
+#include "faction.h"
 #include "particles.h"
 #include "pirate.h"
 #include "scrap.h"
@@ -92,6 +93,7 @@ static void strip_tags(World *world) {
 
 static void abandon(Distress *d, World *world) {
   strip_tags(world);
+  faction_add(world, FACTION_GUILD, -2);
   events_emit(EV_DISTRESS_ABANDONED, d->pos);
   go_idle(d, world);
 }
@@ -205,6 +207,10 @@ void freighter_hit(World *world, Entity e, int damage, Vec2f impact,
   bool blame = fr->player_damage >= FREIGHTER_BLAME_DAMAGE;
   Vec2f pos = world->transforms[e].position;
   freighter_break(world, e);
+  if (blame) {
+    faction_add(world, FACTION_GUILD, -15);
+    faction_add(world, FACTION_CLANS, 6);
+  }
   // The state machine notices the missing hauler and cleans up
   events_emit(blame ? EV_FREIGHTER_KILLED : EV_DISTRESS_LOST, pos);
 }
@@ -213,6 +219,7 @@ void freighter_hit(World *world, Entity e, int damage, Vec2f impact,
 static void rescue(Distress *d, World *world, Entity player, Entity freighter) {
   world->players[player].money +=
       DISTRESS_REWARD_BASE + world_rand(world, DISTRESS_REWARD_SPREAD);
+  faction_add(world, FACTION_GUILD, 4);
   scrap_scatter(world, world->transforms[freighter].position,
                 world->velocities[freighter].value, DISTRESS_RESCUE_SCRAP);
 
@@ -261,6 +268,7 @@ void distress_update(Distress *d, World *world, Entity player, float dt) {
     if (d->raiders == 0) {
       if (d->ambush) {
         world->players[player].money += DISTRESS_AMBUSH_REWARD;
+        faction_add(world, FACTION_GUILD, 2);
         events_emit(EV_DISTRESS_CLEARED, d->pos);
         go_idle(d, world);
       } else {

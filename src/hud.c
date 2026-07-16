@@ -167,6 +167,12 @@ static void dock_panel_render(World *world, Entity player, const Quest *quest,
   bool can_pay = p->money > 0 && p->debt > 0;
   font_draw_text(renderer, "HOLD P - PAY DEBT", x, y, 12.0f,
                  can_pay ? (SDL_Color){ 230, 150, 90, 255 } : COLOR_DIM);
+  y += HUD_LINE_GAP * 0.9f;
+
+  SDL_snprintf(buf, sizeof(buf), "GUILD %+d - CLANS %+d",
+               world->factions.standing[FACTION_GUILD],
+               world->factions.standing[FACTION_CLANS]);
+  font_draw_text(renderer, buf, x, y, 12.0f, COLOR_DIM);
   y += HUD_LINE_GAP * 1.1f;
 
   // Special equipment appears only when this dock's stock roll hit;

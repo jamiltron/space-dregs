@@ -75,7 +75,7 @@ void mine_explode(World *world, Entity e) {
     Vec2f vpos = world->transforms[v].position;
 
     if (entity_has(world, v, C_PIRATE)) {
-      pirate_hit(world, v, MINE_DAMAGE_SHIPS, vpos);
+      pirate_hit(world, v, MINE_DAMAGE_SHIPS, vpos, true);
     } else if (entity_has(world, v, C_ASTEROID)) {
       asteroid_hit(world, v, MINE_DAMAGE_SHIPS, vpos);
     } else if (entity_has(world, v, C_MINE)) {
