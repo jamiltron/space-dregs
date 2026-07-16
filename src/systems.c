@@ -36,6 +36,9 @@ void system_freeze(World *world, Vec2f camera, float now) {
   for (Entity e = 0; e < world->high_water; e++) {
     if (!entity_has(world, e, C_TRANSFORM)) continue;
     if (entity_has(world, e, C_PLAYER)) continue;  // never freeze the player
+    // Distress scenes keep simulating so the raid is already underway
+    // when the player closes in
+    if (entity_has(world, e, C_DISTRESS)) continue;
 
     Transform *tf = &world->transforms[e];
     bool far = fabsf(tf->position.x - camera.x) > FREEZE_RADIUS ||
