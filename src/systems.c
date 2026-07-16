@@ -846,6 +846,12 @@ void system_collision(World *world) {
         int dmg_a = (int)(impact / IMPACT_DAMAGE_UNIT * (heft_b / heft_a));
         int dmg_b = (int)(impact / IMPACT_DAMAGE_UNIT * (heft_a / heft_b));
 
+        // Rock-on-rock grinding wears gentler than ship impacts
+        if (entity_has(world, a, C_ASTEROID) && entity_has(world, b, C_ASTEROID)) {
+          dmg_a /= 2;
+          dmg_b /= 2;
+        }
+
         if (dmg_a > 0) {
           if (entity_has(world, a, C_ASTEROID)) asteroid_hit(world, a, dmg_a, contact);
           else if (entity_has(world, a, C_PIRATE)) pirate_hit(world, a, dmg_a, contact);
