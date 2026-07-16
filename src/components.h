@@ -153,10 +153,16 @@ typedef struct Factions {
   float hunter_timer;           /**< Seconds until the next hunter-spawn roll. */
 } Factions;
 
+typedef enum FreighterMode {
+  FREIGHTER_WILD,       /**< Ambient traffic: cruises, freezes off screen. */
+  FREIGHTER_DEPARTING,  /**< Rescued: flies off and despawns off screen. */
+} FreighterMode;
+
 /** Neutral hauler. */
 typedef struct Freighter {
   float hp;             /**< Small-int damage scale. */
   float player_damage;  /**< Player's share; drives blame on destruction. */
+  int mode;             /**< FreighterMode; only read while untagged. */
 } Freighter;
 
 typedef struct Asteroid {

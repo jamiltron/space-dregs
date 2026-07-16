@@ -25,6 +25,8 @@
 #define CHUNK_PIRATE_MIN_DIST 800.0f
 #define CHUNK_STATION_MIN_DIST 2500.0f  /**< Wild stations only spawn past this. */
 #define CHUNK_STATION_CHANCE 0.05f      /**< Per chunk, out in the deep field. */
+#define CHUNK_HAULER_MIN_DIST 1800.0f   /**< Hauler traffic only past this. */
+#define CHUNK_HAULER_CHANCE 0.07f       /**< Per chunk. */
 #define CHUNK_ENTITY_HEADROOM 128       /**< Stop generating when this near full. */
 
 /** Visited-cell set plus the run's generation seed. */

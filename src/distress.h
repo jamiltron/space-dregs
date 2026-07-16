@@ -34,6 +34,7 @@
 #define FREIGHTER_BLAME_DAMAGE 4.0f    /**< Player damage share that earns the
                                             kill blame when the hauler breaks. */
 #define FREIGHTER_FLEE_SPEED 190.0f    /**< Departure cruise after a rescue. */
+#define FREIGHTER_CRUISE_SPEED 90.0f   /**< Wild traffic cruise. */
 #define FREIGHTER_TURN 60.0f           /**< Deg/s of departure steering. */
 #define FREIGHTER_AVOID_RADIUS 240.0f  /**< Steers away from rocks inside this. */
 #define FREIGHTER_DESPAWN_MARGIN 120.0f /**< Past the screen edge by this: gone. */
@@ -71,6 +72,9 @@ void distress_reset(Distress *d);
 
 /** Roll for calls, chew the hull, detect rescue/loss. */
 void distress_update(Distress *d, World *world, Entity player, float dt);
+
+/** Spawn a hauler (FreighterMode) drifting on a random heading. */
+Entity freighter_spawn(World *world, Vec2f position, int mode);
 
 /** Damage a hauler. Player damage accumulates; if the hauler breaks
  *  with the player's share past FREIGHTER_BLAME_DAMAGE the kill is

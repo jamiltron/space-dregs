@@ -4,6 +4,7 @@
 #include "save.h"
 #include "asteroid.h"
 #include "config.h"
+#include "distress.h"
 #include "pirate.h"
 #include "scrap.h"
 #include "ship.h"
@@ -105,6 +106,12 @@ bool save_write(App *app) {
                    t->position.x, t->position.y, t->angle,
                    v->value.x, v->value.y, pir->hp, pir->loot,
                    pir->archetype);
+    } else if (entity_has(w, e, C_FREIGHTER) &&
+               !entity_has(w, e, C_DISTRESS)) {
+      const Freighter *fr = &w->freighters[e];
+      SDL_IOprintf(io, "frt %f %f %f %f %f %f %d\n",
+                   t->position.x, t->position.y, t->angle,
+                   v->value.x, v->value.y, fr->hp, fr->mode);
     } else if (entity_has(w, e, C_SCRAP)) {
       SDL_IOprintf(io, "scr %f %f %f %f\n", t->position.x, t->position.y,
                    v->value.x, v->value.y);
@@ -226,13 +233,19 @@ bool save_read(App *app) {
     Vec2f ep = { 0 }, ev = { 0 };
     float ang = 0.0f, spin = 0.0f, radius = 0.0f;
 
-    float heat = 0.0f;
+    float heat = 0.0f, fhp = 0.0f;
     if (SDL_sscanf(l, "cell %d %d", &ca, &cb) == 2) {
       chunks_restore_cell(&app->chunks, ca, cb);
     } else if (SDL_sscanf(l, "fac %d %d %f", &ca, &cb, &heat) == 3) {
       app->world.factions.standing[FACTION_GUILD] = ca;
       app->world.factions.standing[FACTION_CLANS] = cb;
       app->world.factions.heat = heat;
+    } else if (SDL_sscanf(l, "frt %f %f %f %f %f %f %d", &ep.x, &ep.y, &ang,
+                          &ev.x, &ev.y, &fhp, &kind) == 7) {
+      Entity e = freighter_spawn(w, ep, kind);
+      w->transforms[e].angle = ang;
+      w->velocities[e].value = ev;
+      w->freighters[e].hp = fhp;
     } else if (SDL_sscanf(l, "ast %f %f %f %f %f %f %f %d %d %d", &ep.x, &ep.y,
                           &ang, &ev.x, &ev.y, &spin, &radius, &gen,
                           &ihp, &kind) >= 9) {

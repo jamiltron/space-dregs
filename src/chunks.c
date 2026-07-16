@@ -5,6 +5,7 @@
 #include "chunks.h"
 #include "app.h"
 #include "asteroid.h"
+#include "distress.h"
 #include "pirate.h"
 #include "signal.h"
 #include "station.h"
@@ -109,6 +110,15 @@ static void chunk_populate(Chunks *ck, World *world, int cx, int cy,
                                           SDL_randf_r(&rng) * CHUNK_SIZE));
     if (vec2f_length(vec2f_sub(pos, ck->home)) > CHUNK_SAFE_RADIUS) {
       signal_spawn(world, pos, SDL_randf_r(&rng) < 0.35f);
+    }
+  }
+
+  if (home_dist > CHUNK_HAULER_MIN_DIST &&
+      SDL_randf_r(&rng) < CHUNK_HAULER_CHANCE) {
+    Vec2f pos = vec2f_add(base, vec2f_new(SDL_randf_r(&rng) * CHUNK_SIZE,
+                                          SDL_randf_r(&rng) * CHUNK_SIZE));
+    if (!on_screen(pos, camera)) {
+      freighter_spawn(world, pos, FREIGHTER_WILD);
     }
   }
 

@@ -99,13 +99,13 @@ static void abandon(Distress *d, World *world) {
 }
 
 /** A boxy tan hauler adrift at pos, nose along a slow drift heading. */
-static Entity freighter_spawn(World *world, Vec2f pos) {
+Entity freighter_spawn(World *world, Vec2f pos, int mode) {
   const float s = 26.0f;
   Entity e = entity_create(world);
 
   world->masks[e] = C_TRANSFORM | C_VELOCITY | C_WIREFRAME | C_GLOW |
-                    C_COLLIDER | C_DISTRESS | C_FREIGHTER;
-  world->freighters[e] = (Freighter){ .hp = FREIGHTER_HP };
+                    C_COLLIDER | C_FREIGHTER;
+  world->freighters[e] = (Freighter){ .hp = FREIGHTER_HP, .mode = mode };
 
   float heading = world_randf(world) * 360.0f;
   world->transforms[e] = (Transform){ .position = pos, .angle = heading };
@@ -173,7 +173,8 @@ static void start_call(Distress *d, World *world, Entity player) {
                                       PIRATE_DRONE, PIRATE_DRONE };
     spawn_raiders(world, pos, 4, pack);
   } else {
-    freighter_spawn(world, pos);
+    Entity f = freighter_spawn(world, pos, FREIGHTER_WILD);
+    world->masks[f] |= C_DISTRESS;
     const PirateArchetype pack[3] = { PIRATE_DART, PIRATE_DART, PIRATE_DART };
     spawn_raiders(world, pos, 3, pack);
   }
@@ -223,12 +224,12 @@ static void rescue(Distress *d, World *world, Entity player, Entity freighter) {
   scrap_scatter(world, world->transforms[freighter].position,
                 world->velocities[freighter].value, DISTRESS_RESCUE_SCRAP);
 
-  // Untagged = departing; system_freighters steers it off and
-  // despawns it once out of view
+  // system_freighters steers it off and despawns it once out of view
   float heading = world_randf(world) * 360.0f;
   world->transforms[freighter].angle = heading;
   world->velocities[freighter].value =
       vec2f_mul(vec2f_dir(DEG_TO_RAD(heading)), FREIGHTER_FLEE_SPEED);
+  world->freighters[freighter].mode = FREIGHTER_DEPARTING;
   world->masks[freighter] &= ~C_DISTRESS;
 
   events_emit(EV_DISTRESS_SAVED, d->pos);

@@ -609,8 +609,9 @@ void system_missiles(World *world, float dt) {
   }
 }
 
-/** Departing (untagged) haulers cruise away, veering around rocks,
- *  and despawn once safely past the screen edge. */
+/** Untagged haulers cruise on their heading, veering around rocks.
+ *  Departing ones despawn once safely past the screen edge; wild
+ *  traffic persists and freezes like anything else. */
 void system_freighters(World *world, Vec2f camera, float dt) {
   for (Entity e = 0; e < world->high_water; e++) {
     if (!entity_has(world, e, C_FREIGHTER | C_TRANSFORM | C_VELOCITY))
@@ -619,11 +620,13 @@ void system_freighters(World *world, Vec2f camera, float dt) {
       continue;
 
     Transform *tf = &world->transforms[e];
+    bool departing = world->freighters[e].mode == FREIGHTER_DEPARTING;
 
-    if (fabsf(tf->position.x - camera.x) >
-            WINDOW_WIDTH / 2.0f + FREIGHTER_DESPAWN_MARGIN ||
-        fabsf(tf->position.y - camera.y) >
-            WINDOW_HEIGHT / 2.0f + FREIGHTER_DESPAWN_MARGIN) {
+    if (departing &&
+        (fabsf(tf->position.x - camera.x) >
+             WINDOW_WIDTH / 2.0f + FREIGHTER_DESPAWN_MARGIN ||
+         fabsf(tf->position.y - camera.y) >
+             WINDOW_HEIGHT / 2.0f + FREIGHTER_DESPAWN_MARGIN)) {
       entity_destroy(world, e);
       continue;
     }
@@ -648,7 +651,8 @@ void system_freighters(World *world, Vec2f camera, float dt) {
     tf->angle += err;
 
     world->velocities[e].value =
-        vec2f_mul(vec2f_dir(DEG_TO_RAD(tf->angle)), FREIGHTER_FLEE_SPEED);
+        vec2f_mul(vec2f_dir(DEG_TO_RAD(tf->angle)),
+                  departing ? FREIGHTER_FLEE_SPEED : FREIGHTER_CRUISE_SPEED);
   }
 }
 
