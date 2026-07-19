@@ -1,3 +1,6 @@
+# v0.4.7
+- Updating UI to better show faction heat
+
 # v0.4.6
 - Added missiles
 - Added distress becons
