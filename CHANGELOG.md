@@ -1,3 +1,8 @@
+# v0.4.6
+- Added missiles
+- Added distress becons
+- Added faction heat
+
 ## v0.3.1
 - Correcting asteroid spawns to only incur off screen
 - Multiplying asteroid spawn rate by 1.5
