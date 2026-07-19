@@ -147,6 +147,10 @@ static void simulate(float dt) {
 
 /** Pause overlay: purchased upgrades and the resume/menu/quit hints. */
 static void pause_render(SDL_Renderer *renderer) {
+  // Dim the drifting world so the overlay text reads cleanly
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 170);
+  SDL_RenderFillRect(renderer, NULL);
+
   const char *title = "PAUSED";
   float size = 40.0f;
   float y = WINDOW_HEIGHT * 0.25f;
